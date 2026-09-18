@@ -1,0 +1,31 @@
+# --- Web framework ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# --- Database ---
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+alembic==1.13.2
+
+# --- Settings & validation ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+email-validator==2.2.0
+
+# --- Auth (added now so Stage 3 doesn't require touching requirements again) ---
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+
+# --- Gemini AI (used starting Stage 5) ---
+google-generativeai==0.8.2
+
+# --- Supabase Storage (used starting Stage 4/5) ---
+supabase==2.7.4
+
+# --- Environment ---
+python-dotenv==1.0.1
+
+# --- Dev / test (used by tests/) ---
+pytest==8.3.3
+httpx==0.27.2
