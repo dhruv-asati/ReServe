@@ -6,3 +6,70 @@ venv/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
+node_modules/*
+node_modules
+# =========================
+# Environment files & secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Python backend
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# =========================
+# Frontend - Node.js
+# =========================
+node_modules/
+frontend/node_modules/
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Frontend build files
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/.vite/
+
+# =========================
+# IDE & editor files
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Database & local files
+# =========================
+*.db
+*.sqlite3
+
+# =========================
+# Logs & temporary files
+# =========================
+*.log
+*.tmp
+*.temp
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
