@@ -1,33 +1,34 @@
-import { useCallback, useState } from 'react';
+import { useState } from "react";
 
-/**
- * State backed by localStorage. Reads are lazy and guarded, so a blocked or
- * full storage never breaks rendering — the initial value is used instead.
- */
-export default function useLocalStorage(key, initialValue) {
-  const [value, setValue] = useState(() => {
+function useLocalStorage(key, initialValue) {
+  const [storedValue, setStoredValue] = useState(() => {
     try {
-      const stored = window.localStorage.getItem(key);
-      return stored !== null ? JSON.parse(stored) : initialValue;
-    } catch {
+      const item = localStorage.getItem(key);
+
+      if (item !== null) {
+        return JSON.parse(item);
+      }
+
+      return initialValue;
+    } catch (error) {
+      console.error("Error reading localStorage:", error);
       return initialValue;
     }
   });
 
-  const set = useCallback(
-    (next) => {
-      setValue((current) => {
-        const resolved = typeof next === 'function' ? next(current) : next;
-        try {
-          window.localStorage.setItem(key, JSON.stringify(resolved));
-        } catch {
-          /* storage unavailable — keep in-memory state */
-        }
-        return resolved;
-      });
-    },
-    [key],
-  );
+  const setValue = (value) => {
+    try {
+      const valueToStore =
+        value instanceof Function ? value(storedValue) : value;
 
-  return [value, set];
+      setStoredValue(valueToStore);
+      localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.error("Error writing to localStorage:", error);
+    }
+  };
+
+  return [storedValue, setValue];
 }
+
+export default useLocalStorage;

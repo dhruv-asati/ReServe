@@ -13,6 +13,7 @@ export const PATHS = {
   CREATE_RESCUE: '/app/rescues/new',
   RESCUE_REQUESTS: '/app/rescues',
   RESOURCE_DETAILS: '/app/rescues/:rescueId',
+  RESOURCE_DETAIL: '/resources/:id',
   MATCHING: '/app/matching',
   MATCHING_RESULTS: '/app/rescues/:rescueId/matching',
   LIVE_OPERATIONS: '/app/operations',

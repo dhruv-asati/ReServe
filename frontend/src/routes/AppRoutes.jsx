@@ -6,6 +6,9 @@ import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Dashboard from '@/pages/Dashboard';
+import CreateRescue from '@/pages/CreateRescue';
+import AIAnalysis from '@/pages/AIAnalysis';
+import ResourceDetails from '@/pages/ResourceDetails';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 import { PATHS } from '@/routes/paths';
@@ -41,24 +44,8 @@ export default function AppRoutes() {
               />
             }
           />
-          <Route
-            path="rescues/new"
-            element={
-              <Placeholder
-                title="Create Rescue"
-                description="Log surplus and open a rescue window."
-              />
-            }
-          />
-          <Route
-            path="rescues/:rescueId"
-            element={
-              <Placeholder
-                title="Resource Details"
-                description="A single resource and its constraints."
-              />
-            }
-          />
+          <Route path="rescues/new" element={<CreateRescue />} />
+          <Route path="rescues/:rescueId" element={<AIAnalysis />} />
           <Route
             path="rescues/:rescueId/matching"
             element={
@@ -113,6 +100,14 @@ export default function AppRoutes() {
               />
             }
           />
+        </Route>
+      </Route>
+
+      {/* Resource Details — standalone route (not nested under /app), still
+          gated behind the mock session and using the same app shell. */}
+      <Route element={<ProtectedRoute />}>
+        <Route path={PATHS.RESOURCE_DETAIL} element={<AppLayout />}>
+          <Route index element={<ResourceDetails />} />
         </Route>
       </Route>
 

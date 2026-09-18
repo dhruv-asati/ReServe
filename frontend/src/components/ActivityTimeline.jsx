@@ -1,9 +1,11 @@
 import { ACTIVITY_STAGE_ICONS } from '@/utils/icons';
+import { StatusBadge } from '@/components/ui';
 
 /**
- * ActivityTimeline — compact vertical timeline of rescue lifecycle events.
- * Generic over `items`, so it can back any activity feed later, not just
- * the dashboard's recent-activity section.
+ * ActivityTimeline — compact vertical timeline of rescue lifecycle events:
+ * created → analyzed → matched → assigned → pickup → completed. Generic
+ * over `items`, so it can back any activity feed later, not just the
+ * dashboard's recent-activity section.
  */
 export default function ActivityTimeline({ items = [] }) {
   return (
@@ -23,8 +25,11 @@ export default function ActivityTimeline({ items = [] }) {
             </span>
 
             <div className="min-w-0 flex-1 pt-1">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-xs font-semibold text-content">{item.title}</p>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="truncate text-xs font-semibold text-content">{item.title}</p>
+                  {item.status && <StatusBadge status={item.status} size="sm" />}
+                </div>
                 <span className="shrink-0 text-[11px] text-faint">{item.time}</span>
               </div>
               <p className="mt-0.5 truncate text-xs text-muted">{item.description}</p>

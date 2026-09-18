@@ -119,6 +119,47 @@
       linear-gradient(to bottom, #ffffff08 1px, transparent 1px);
     background-size: 32px 32px;
   }
+
+  /* Dark-themed OpenStreetMap preview (Dashboard map). Scoped so it never
+     touches Leaflet instances elsewhere. Tiles are inverted+rotated to fake
+     a dark basemap; markers live in a different pane and stay untouched. */
+  .map-preview-dark .leaflet-container {
+    background-color: var(--color-surface-2);
+    font-family: var(--font-sans);
+  }
+
+  .map-preview-dark .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.92);
+  }
+
+  .map-preview-dark .leaflet-control-zoom a {
+    background-color: var(--color-surface-2);
+    color: var(--color-content);
+    border-color: var(--color-line);
+  }
+
+  .map-preview-dark .leaflet-control-zoom a:hover {
+    background-color: var(--color-surface-3);
+  }
+
+  .map-preview-dark .leaflet-control-attribution {
+    background-color: rgb(16 21 29 / 75%);
+    color: var(--color-faint);
+  }
+
+  .map-preview-dark .leaflet-control-attribution a {
+    color: var(--color-muted);
+  }
+
+  .map-preview-dark .leaflet-popup-content-wrapper,
+  .map-preview-dark .leaflet-popup-tip {
+    background-color: var(--color-surface-2);
+    color: var(--color-content);
+  }
+
+  .map-preview-dark .leaflet-popup-content-wrapper {
+    border-radius: var(--radius-control);
+  }
 }
 
 @layer utilities {

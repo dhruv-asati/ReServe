@@ -8,18 +8,24 @@ import {
   PlusCircle,
   GitBranch,
   Map,
+  ClipboardList,
+  History,
+  ArrowUpRight,
 } from 'lucide-react';
 
-import { Card, LoadingState } from '@/components/ui';
+import { Card, Button, LoadingState, EmptyState } from '@/components/ui';
 import StatCard from '@/components/StatCard';
 import OperationCard from '@/components/OperationCard';
 import AtRiskCard from '@/components/AtRiskCard';
 import ActivityTimeline from '@/components/ActivityTimeline';
+import MapPreview from '@/components/MapPreview';
+import MapLegend from '@/components/MapLegend';
 import { PATHS } from '@/routes/paths';
 import { getDashboardOverview } from '@/services/dashboardService';
 import { getActiveOperations } from '@/services/operationsService';
 import { getAtRiskResources } from '@/services/resourcesService';
 import { getRecentActivity } from '@/services/activityService';
+import { getNetworkLocations } from '@/services/networkService';
 
 const QUICK_ACTIONS = [
   { label: 'Create Rescue', to: PATHS.CREATE_RESCUE, icon: PlusCircle },
@@ -32,16 +38,18 @@ const QUICK_ACTIONS = [
  * Dashboard — operational overview.
  *
  * Every section fetches through its own mock service (dashboardService,
- * operationsService, resourcesService, activityService) — same shape a real
- * endpoint will return later, loaded independently so one slow section never
- * blocks the rest of the page. The map, charts, and the full operations
- * table are separate, later steps.
+ * operationsService, resourcesService, activityService, networkService) —
+ * same shape a real endpoint will return later, loaded independently so one
+ * slow section never blocks the rest of the page. Charts and the full
+ * operations table are separate, later steps; the map here is a compact,
+ * read-only preview, not the full interactive Rescue Network page.
  */
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [operations, setOperations] = useState(null);
   const [atRiskResources, setAtRiskResources] = useState(null);
   const [activity, setActivity] = useState(null);
+  const [networkLocations, setNetworkLocations] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +58,7 @@ export default function Dashboard() {
     getActiveOperations().then((data) => active && setOperations(data));
     getAtRiskResources().then((data) => active && setAtRiskResources(data));
     getRecentActivity().then((data) => active && setActivity(data));
+    getNetworkLocations().then((data) => active && setNetworkLocations(data));
 
     return () => {
       active = false;
@@ -59,12 +68,12 @@ export default function Dashboard() {
   const loading = !stats;
 
   return (
-    <div className="animate-fade-up space-y-6">
+    <div className="animate-fade-up space-y-6 lg:space-y-8">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-content sm:text-2xl">
           Rescue Operations Overview
         </h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1.5 text-sm text-muted">
           Monitor resources, active rescues, and at-risk operations.
         </p>
       </div>
@@ -106,10 +115,7 @@ export default function Dashboard() {
       </div>
 
       <Card>
-        <Card.Header
-          title="Quick Actions"
-          subtitle="Jump straight into the most common tasks."
-        />
+        <Card.Header title="Quick Actions" subtitle="Jump straight into the most common tasks." />
         <Card.Body>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {QUICK_ACTIONS.map(({ label, to, icon: Icon }) => (
@@ -129,6 +135,37 @@ export default function Dashboard() {
         </Card.Body>
       </Card>
 
+      {/* ---------- Network Map Preview ---------- */}
+      <Card>
+        <Card.Header
+          icon={Map}
+          title="Network Map Preview"
+          subtitle="Providers, recipients, partners and hubs across the service area."
+          action={
+            <Button
+              as={Link}
+              to={PATHS.RESCUE_NETWORK}
+              variant="ghost"
+              size="sm"
+              iconRight={ArrowUpRight}
+              className="hidden sm:inline-flex"
+            >
+              Open full map
+            </Button>
+          }
+        />
+        <Card.Body className="space-y-4">
+          {networkLocations ? (
+            <>
+              <MapPreview locations={networkLocations} />
+              <MapLegend />
+            </>
+          ) : (
+            <LoadingState label="Loading network map…" />
+          )}
+        </Card.Body>
+      </Card>
+
       {/* ---------- Active Rescue Operations ---------- */}
       <section className="space-y-3">
         <div>
@@ -140,14 +177,22 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {operations ? (
+        {operations === null ? (
+          <LoadingState label="Loading active operations…" />
+        ) : operations.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={ClipboardList}
+              title="No active operations"
+              description="New rescues will appear here as soon as a resource is logged."
+            />
+          </Card>
+        ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {operations.map((operation) => (
               <OperationCard key={operation.id} operation={operation} />
             ))}
           </div>
-        ) : (
-          <LoadingState label="Loading active operations…" />
         )}
       </section>
 
@@ -162,14 +207,22 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {atRiskResources ? (
+        {atRiskResources === null ? (
+          <LoadingState label="Loading at-risk resources…" />
+        ) : atRiskResources.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={AlertTriangle}
+              title="Nothing at risk right now"
+              description="Resources nearing their rescue deadline will show up here."
+            />
+          </Card>
+        ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {atRiskResources.map((resource) => (
               <AtRiskCard key={resource.id} resource={resource} />
             ))}
           </div>
-        ) : (
-          <LoadingState label="Loading at-risk resources…" />
         )}
       </section>
 
@@ -180,10 +233,16 @@ export default function Dashboard() {
           subtitle="Latest lifecycle events across active rescues."
         />
         <Card.Body>
-          {activity ? (
-            <ActivityTimeline items={activity} />
-          ) : (
+          {activity === null ? (
             <LoadingState label="Loading recent activity…" />
+          ) : activity.length === 0 ? (
+            <EmptyState
+              icon={History}
+              title="No recent activity"
+              description="Lifecycle events — created, analyzed, matched, assigned, completed — will show up here."
+            />
+          ) : (
+            <ActivityTimeline items={activity} />
           )}
         </Card.Body>
       </Card>

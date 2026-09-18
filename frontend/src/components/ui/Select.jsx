@@ -10,6 +10,7 @@ export default function Select({
   label,
   hint,
   error,
+  required = false,
   options = [],
   placeholder,
   className,
@@ -29,13 +30,21 @@ export default function Select({
           className="mb-1.5 block text-xs font-medium tracking-wide text-muted"
         >
           {label}
+          {required && (
+            <span className="ml-0.5 text-critical" aria-hidden="true">
+              *
+            </span>
+          )}
         </label>
       )}
 
       <div className="relative">
         <select
           id={selectId}
+          required={required}
+          aria-required={required || undefined}
           aria-invalid={Boolean(error) || undefined}
+          aria-describedby={error || hint ? `${selectId}-desc` : undefined}
           className={cn(
             'h-9.5 w-full appearance-none rounded-control border bg-surface-2 pl-3 pr-9 text-sm text-content',
             'transition-colors duration-150',
@@ -65,7 +74,10 @@ export default function Select({
       </div>
 
       {(error || hint) && (
-        <p className={cn('mt-1.5 text-xs', error ? 'text-critical' : 'text-faint')}>
+        <p
+          id={`${selectId}-desc`}
+          className={cn('mt-1.5 text-xs', error ? 'text-critical' : 'text-faint')}
+        >
           {error || hint}
         </p>
       )}

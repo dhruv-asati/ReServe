@@ -9,6 +9,7 @@ export default function Input({
   label,
   hint,
   error,
+  required = false,
   icon: Icon,
   suffix,
   className,
@@ -27,6 +28,11 @@ export default function Input({
           className="mb-1.5 block text-xs font-medium tracking-wide text-muted"
         >
           {label}
+          {required && (
+            <span className="ml-0.5 text-critical" aria-hidden="true">
+              *
+            </span>
+          )}
         </label>
       )}
 
@@ -39,6 +45,8 @@ export default function Input({
 
         <input
           id={inputId}
+          required={required}
+          aria-required={required || undefined}
           aria-invalid={Boolean(error) || undefined}
           aria-describedby={error || hint ? `${inputId}-desc` : undefined}
           className={cn(

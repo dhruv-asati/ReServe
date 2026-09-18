@@ -105,6 +105,21 @@ export const RESOURCE_META = {
   [RESOURCE_TYPE.MEDICAL]: { label: 'Medical', icon: 'Pill', color: '#38bdf8' },
 };
 
+/** Network roles shown on the rescue map and its legend. */
+export const NETWORK_ROLE = {
+  PROVIDER: 'provider',
+  RECIPIENT: 'recipient',
+  PARTNER: 'partner',
+  HUB: 'hub',
+};
+
+export const NETWORK_ROLE_META = {
+  [NETWORK_ROLE.PROVIDER]: { label: 'Providers', color: '#14b98f' },
+  [NETWORK_ROLE.RECIPIENT]: { label: 'Recipients', color: '#38bdf8' },
+  [NETWORK_ROLE.PARTNER]: { label: 'Rescue Partners', color: '#a78bfa' },
+  [NETWORK_ROLE.HUB]: { label: 'Rescue Hubs', color: '#f59e0b' },
+};
+
 /** The constraints the planner evaluates — reused by the reallocation UI. */
 export const CONSTRAINTS = [
   { key: 'capacity', label: 'Capacity' },
