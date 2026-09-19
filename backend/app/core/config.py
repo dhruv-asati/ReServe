@@ -9,7 +9,7 @@ file in local development). Nothing sensitive is hardcoded here — see
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -86,12 +86,68 @@ class Settings(BaseSettings):
     # --- Logging ---
     LOG_LEVEL: str = Field(default="INFO")
 
+    # --- Email (SMTP) ---
+    # Basic transactional email for notification_service's in-app events
+    # (allocation confirmed, partner assigned, operation completed/failed,
+    # reallocation). Leave SMTP_HOST/SMTP_FROM_EMAIL blank to run with
+    # email disabled — email_service.is_configured() gates every send, so
+    # an empty/default .env (e.g. local dev, CI, tests) never attempts a
+    # network connection. No SMS support yet.
+    SMTP_HOST: str = Field(default="")
+    SMTP_PORT: int = Field(default=587)
+    SMTP_USERNAME: str = Field(default="")
+    SMTP_PASSWORD: str = Field(default="")
+    # "From" address on outgoing mail. Required (alongside SMTP_HOST) for
+    # email_service.is_configured() to return True.
+    SMTP_FROM_EMAIL: str = Field(default="")
+    # STARTTLS on the same port (587) is the common case for Gmail/SES/etc.
+    # Set to false only for a local dev SMTP catcher (e.g. MailHog) that
+    # doesn't speak TLS.
+    SMTP_USE_TLS: bool = Field(default=True)
+
     @field_validator("DATABASE_URL")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         if not v:
             raise ValueError("DATABASE_URL must not be empty")
         return v
+
+    @model_validator(mode="after")
+    def _reject_insecure_production_secret(self) -> "Settings":
+        """
+        Refuses to start in 'staging'/'production' with the placeholder
+        JWT_SECRET (or one too short to resist brute-forcing) — signing
+        tokens with a known/default/weak secret means anyone can forge a
+        valid access token for any user, including an ADMIN. This only
+        applies outside 'development' so local setup isn't blocked before
+        a real secret is chosen.
+        """
+        if self.ENVIRONMENT.lower() in ("staging", "production"):
+            if self.JWT_SECRET == "CHANGE_ME_IN_PRODUCTION" or len(self.JWT_SECRET) < 32:
+                raise ValueError(
+                    "JWT_SECRET must be set to a unique, random value of at least 32 "
+                    "characters when ENVIRONMENT is 'staging' or 'production'. Generate one "
+                    "with, e.g., `python3 -c \"import secrets; print(secrets.token_urlsafe(48))\"`."
+                )
+        return self
+
+    @field_validator("SUPABASE_URL")
+    @classmethod
+    def normalize_supabase_url(cls, v: str) -> str:
+        """
+        supabase-py's create_client() wants the project's *base* URL
+        (https://<ref>.supabase.co) and appends its own /storage/v1/...
+        path. Supabase's dashboard also shows a "Project URL" under the
+        REST heading as https://<ref>.supabase.co/rest/v1/, and pasting
+        that in produces silently broken storage URLs like
+        .../rest/v1/storage/v1/object/... that 404 on every upload.
+        Trim any trailing path/slash so either form works.
+        """
+        v = v.strip().rstrip("/")
+        for suffix in ("/rest/v1", "/storage/v1", "/auth/v1"):
+            if v.endswith(suffix):
+                v = v[: -len(suffix)]
+        return v.rstrip("/")
 
     @property
     def cors_origins_list(self) -> List[str]:

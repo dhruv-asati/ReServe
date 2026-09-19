@@ -8,9 +8,16 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.models.enums import UserRole
+
+# Self-registration may only create the three "normal" account types.
+# ADMIN is deliberately excluded: accepting an admin role straight from a
+# public, unauthenticated request body would let anyone grant themselves
+# full platform access. Admin accounts must be created out-of-band (e.g.
+# directly in the database, or later promoted by an existing admin).
+_SELF_REGISTERABLE_ROLES = (UserRole.PROVIDER, UserRole.RECIPIENT, UserRole.RESCUE_PARTNER)
 
 
 class RegisterRequest(BaseModel):
@@ -18,7 +25,19 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128, description="Minimum 8 characters.")
     full_name: str = Field(min_length=1, max_length=255)
     phone: Optional[str] = Field(default=None, max_length=30)
-    role: UserRole
+    role: UserRole = Field(
+        description="One of PROVIDER, RECIPIENT, RESCUE_PARTNER. ADMIN accounts cannot be "
+        "self-registered."
+    )
+
+    @field_validator("role")
+    @classmethod
+    def _reject_admin_self_registration(cls, v: UserRole) -> UserRole:
+        if v not in _SELF_REGISTERABLE_ROLES:
+            raise ValueError(
+                "role must be one of: " + ", ".join(r.value for r in _SELF_REGISTERABLE_ROLES)
+            )
+        return v
 
     model_config = ConfigDict(
         json_schema_extra={

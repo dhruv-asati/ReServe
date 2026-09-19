@@ -145,31 +145,30 @@ class AllocationStatus(str, enum.Enum):
 
 
 class OperationStatus(str, enum.Enum):
-    CREATED = "CREATED"
-    MATCHING = "MATCHING"
-    MATCHED = "MATCHED"
-    PARTNER_ASSIGNED = "PARTNER_ASSIGNED"
-    PICKUP_IN_PROGRESS = "PICKUP_IN_PROGRESS"
+    """
+    Basic rescue-operation lifecycle: PLANNED -> IN_TRANSIT -> DELIVERED ->
+    COMPLETED, with FAILED reachable from any non-terminal state. This is
+    the simplified 5-status set for the basic-operations stage — earlier
+    sub-states an operation might previously have passed through
+    (matching, partner assignment, pickup-in-progress) are all folded
+    into PLANNED here; COMPLETED/DELIVERED are terminal-ish (COMPLETED is
+    the true terminal close-out), and FAILED is the terminal failure
+    state. See app/services/operation_service.py's ALLOWED_TRANSITIONS
+    for the exact state machine this enforces.
+    """
+
+    PLANNED = "PLANNED"
     IN_TRANSIT = "IN_TRANSIT"
     DELIVERED = "DELIVERED"
-    REALLOCATING = "REALLOCATING"
-    CANCELLED = "CANCELLED"
-    EXPIRED = "EXPIRED"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
 
 
 class OperationEventType(str, enum.Enum):
     CREATED = "CREATED"
-    MATCHING_STARTED = "MATCHING_STARTED"
-    MATCHED = "MATCHED"
-    PARTNER_ASSIGNED = "PARTNER_ASSIGNED"
-    PICKUP_STARTED = "PICKUP_STARTED"
-    IN_TRANSIT = "IN_TRANSIT"
-    DELIVERED = "DELIVERED"
-    REALLOCATION_TRIGGERED = "REALLOCATION_TRIGGERED"
-    REALLOCATED = "REALLOCATED"
-    CANCELLED = "CANCELLED"
-    EXPIRED = "EXPIRED"
+    STATUS_CHANGED = "STATUS_CHANGED"
     NOTE = "NOTE"
+    REALLOCATED = "REALLOCATED"
 
 
 class NotificationType(str, enum.Enum):

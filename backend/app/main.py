@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import auth, health, recipients, requests, rescue_partners, resources, uploads, users
+from app.api import admin, allocations, analytics, auth, health, matching, notifications, operations, predictions, recipients, requests, rescue_partners, resources, uploads, users
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging_config import configure_logging
@@ -26,16 +26,98 @@ settings = get_settings()
 configure_logging()
 logger = logging.getLogger(__name__)
 
+# --- Swagger tag organization ----------------------------------------------
+# Purely metadata: gives each router's tag a description and fixes the
+# order tags/endpoints are grouped in under /docs (FastAPI otherwise sorts
+# tags by first-appearance, which is fragile as routers get reordered).
+# Every name here must match a `tags=[...]` value used by an APIRouter in
+# app/api/*.py.
+openapi_tags = [
+    {
+        "name": "Health",
+        "description": "Uptime/readiness check. No authentication required.",
+    },
+    {
+        "name": "Auth",
+        "description": (
+            "Register, log in, and manage JWT access/refresh tokens. See the "
+            "'Authentication & roles' section of the backend README for the full "
+            "picture — in short: log in here, then click **Authorize** in Swagger "
+            "UI and paste the `access_token` to call any protected endpoint below."
+        ),
+    },
+    {
+        "name": "Users",
+        "description": "Read and update the authenticated user's own account, or (ADMIN) any account.",
+    },
+    {
+        "name": "Resources",
+        "description": (
+            "Surplus FOOD/MEDICAL resources posted by providers. Create/edit/delete is "
+            "restricted to the resource's own PROVIDER or an ADMIN."
+        ),
+    },
+    {
+        "name": "Uploads",
+        "description": "Upload/delete resource images (Supabase Storage, or local disk in dev).",
+    },
+    {
+        "name": "Recipients",
+        "description": "Recipient organization profiles that request resources.",
+    },
+    {
+        "name": "Rescue Partners",
+        "description": "Rescue-partner organization profiles that handle pickup/delivery.",
+    },
+    {
+        "name": "Resource Requests",
+        "description": "Recipients requesting a specific resource, and providers accepting/declining.",
+    },
+    {
+        "name": "Matching",
+        "description": "AI/rule-based matching of resources to recipients and rescue partners.",
+    },
+    {
+        "name": "Allocations",
+        "description": "Confirmed resource-to-recipient assignments created from a match.",
+    },
+    {
+        "name": "Operations",
+        "description": "Pickup/delivery lifecycle tracking for an allocation (rescue partner facing).",
+    },
+    {
+        "name": "Analytics",
+        "description": "Aggregate stats across resources, allocations, and operations.",
+    },
+    {
+        "name": "Predictions",
+        "description": "Forecasts (e.g. expected surplus) derived from historical data.",
+    },
+    {
+        "name": "Notifications",
+        "description": "In-app notifications for the authenticated user.",
+    },
+    {
+        "name": "Admin",
+        "description": "ADMIN-only account/verification management. Every endpoint requires the ADMIN role.",
+    },
+]
+
 app = FastAPI(
     title=settings.APP_NAME,
     description=(
         "ReServe — AI-Powered Resource Redistribution & Rescue Network.\n\n"
-        "Backend API only. Turning surplus into timely service."
+        "Backend API only. Turning surplus into timely service.\n\n"
+        "All endpoints (except `/api/health` and `/api/auth/*`) require a bearer access "
+        "token — log in via **Auth &rarr; POST /api/auth/login**, then click **Authorize** "
+        "above and paste the `access_token`. See the backend README for the full "
+        "authentication and roles reference."
     ),
     version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    openapi_tags=openapi_tags,
 )
 
 # --- CORS ---------------------------------------------------------------
@@ -135,6 +217,13 @@ app.include_router(uploads.router)
 app.include_router(recipients.router)
 app.include_router(rescue_partners.router)
 app.include_router(requests.router)
+app.include_router(matching.router)
+app.include_router(allocations.router)
+app.include_router(operations.router)
+app.include_router(analytics.router)
+app.include_router(predictions.router)
+app.include_router(notifications.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")

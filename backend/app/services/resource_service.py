@@ -64,13 +64,9 @@ ACTIVE_ALLOCATION_STATUSES = {
     AllocationStatus.CONFIRMED,
 }
 ACTIVE_OPERATION_STATUSES = {
-    OperationStatus.CREATED,
-    OperationStatus.MATCHING,
-    OperationStatus.MATCHED,
-    OperationStatus.PARTNER_ASSIGNED,
-    OperationStatus.PICKUP_IN_PROGRESS,
+    OperationStatus.PLANNED,
     OperationStatus.IN_TRANSIT,
-    OperationStatus.REALLOCATING,
+    OperationStatus.DELIVERED,
 }
 
 

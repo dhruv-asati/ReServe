@@ -14,6 +14,7 @@ tables at session scope and truncates the relevant tables between tests,
 so tests can run in any order without leaking state into each other.
 """
 
+import os
 import uuid
 
 import pytest
@@ -25,6 +26,8 @@ from app.core.security import hash_password
 from app.db.database import Base, get_db
 from app.main import app
 from app.models.enums import (
+    MatchCandidateType,
+    MatchStatus,
     RecipientType,
     ResourceRequestStatus,
     ResourceStatus,
@@ -32,13 +35,22 @@ from app.models.enums import (
     RescueRequestStatus,
     UserRole,
 )
+from app.models.match import Match
 from app.models.recipient import Recipient
 from app.models.resource import Resource
 from app.models.resource_request import ResourceRequest
 from app.models.rescue_request import RescueRequest
 from app.models.user import User
 
-TEST_DATABASE_URL = "postgresql+psycopg2://postgres:postgres@localhost:5432/reserve_test"
+DEFAULT_TEST_DATABASE_URL = "postgresql+psycopg2://postgres:postgres@localhost:5432/reserve_test"
+
+# The module docstring above tells you to point DATABASE_URL at a
+# throwaway database before running. Honour it — hardcoding the URL here
+# meant anyone following those instructions silently ran the suite
+# (including its TRUNCATE-between-tests fixture) against whatever
+# database happened to be at the default address, not the one they
+# asked for.
+TEST_DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_TEST_DATABASE_URL)
 
 engine = create_engine(TEST_DATABASE_URL)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -58,9 +70,9 @@ def _clean_tables():
     with engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE TABLE rescue_operations, allocations, matches, "
+                "TRUNCATE TABLE notifications, rescue_operations, allocations, matches, "
                 "rescue_requests, resource_request_status_history, resource_requests, "
-                "resources, recipients, users RESTART IDENTITY CASCADE"
+                "resources, recipients, rescue_hubs, users RESTART IDENTITY CASCADE"
             )
         )
 
@@ -116,14 +128,21 @@ def make_resource(
     resource_type: ResourceType = ResourceType.FOOD,
     **extra,
 ) -> Resource:
+    # Every default below is popped out of **extra rather than passed
+    # positionally alongside it. Hardcoding e.g. `quantity=80` and then
+    # splatting `**extra` makes `make_resource(db, provider, quantity=200)`
+    # raise "got multiple values for keyword argument 'quantity'" before
+    # the test body ever runs — and most callers across the suite do
+    # override quantity. This matches the `extra.pop(...)` convention the
+    # other helpers in this module already use.
     resource = Resource(
         provider_id=provider.id,
-        title="80 vegetarian meals",
+        title=extra.pop("title", "80 vegetarian meals"),
         resource_type=resource_type,
-        quantity=80,
-        unit="meals",
+        quantity=extra.pop("quantity", 80),
+        unit=extra.pop("unit", "meals"),
         status=status,
-        location_address="Grand Plaza Hotel, MG Road, Bengaluru",
+        location_address=extra.pop("location_address", "Grand Plaza Hotel, MG Road, Bengaluru"),
         **extra,
     )
     db.add(resource)
@@ -144,14 +163,67 @@ def make_rescue_request(db, resource: Resource, status: RescueRequestStatus) -> 
     return rr
 
 
+def make_rescue_hub(db, **extra):
+    from app.models.rescue_hub import RescueHub
+
+    hub = RescueHub(
+        name=extra.pop("name", "Night Rescue Hub"),
+        accepts_food=extra.pop("accepts_food", True),
+        accepts_medical=extra.pop("accepts_medical", False),
+        location_address=extra.pop("location_address", "5 Hub Road, Bengaluru"),
+        **extra,
+    )
+    db.add(hub)
+    db.commit()
+    db.refresh(hub)
+    return hub
+
+
+def make_match(
+    db,
+    rescue_request: RescueRequest,
+    recipient=None,
+    rescue_hub_id=None,
+    candidate_type: MatchCandidateType | None = None,
+    status: MatchStatus = MatchStatus.PROPOSED,
+    score: float = 0.8,
+    distance_km: float = 5.0,
+    **extra,
+) -> Match:
+    if candidate_type is None:
+        candidate_type = MatchCandidateType.RESCUE_HUB if rescue_hub_id else MatchCandidateType.RECIPIENT
+    match = Match(
+        rescue_request_id=rescue_request.id,
+        candidate_type=candidate_type,
+        recipient_id=recipient.id if recipient is not None else None,
+        rescue_hub_id=rescue_hub_id,
+        distance_km=distance_km,
+        score=score,
+        status=status,
+        reasons=extra.pop("reasons", {"breakdown": {}, "passed": [], "failed": [], "explanation": "test match"}),
+        **extra,
+    )
+    db.add(match)
+    db.commit()
+    db.refresh(match)
+    return match
+
+
 def make_recipient(
     db,
     user: User,
     accepts_food: bool = True,
     accepts_medical: bool = False,
     medical_verified: bool = False,
+    is_verified: bool = True,
     **extra,
 ) -> Recipient:
+    # `is_verified` (platform verification, distinct from `medical_verified`)
+    # defaults to False on real recipient records and is a hard gate in the
+    # matching engine (see matching_engine._score_eligibility). Tests default
+    # it to True here so each test isolates the one factor it's checking
+    # (capacity, availability, distance, etc.) instead of every candidate
+    # being rejected for being unverified.
     recipient = Recipient(
         user_id=user.id,
         organization_name=extra.pop("organization_name", "Hope Community Shelter"),
@@ -159,7 +231,8 @@ def make_recipient(
         accepts_food=accepts_food,
         accepts_medical=accepts_medical,
         medical_verified=medical_verified,
-        location_address="12 Church Street, Bengaluru",
+        is_verified=is_verified,
+        location_address=extra.pop("location_address", "12 Church Street, Bengaluru"),
         **extra,
     )
     db.add(recipient)
@@ -190,3 +263,35 @@ def make_resource_request(
     db.commit()
     db.refresh(request)
     return request
+
+
+def make_rescue_partner(
+    db,
+    user: "User",
+    partner_type=None,
+    is_available: bool = True,
+    accepts_food: bool = True,
+    accepts_medical: bool = False,
+    is_verified: bool = True,
+    **extra,
+):
+    """A RescuePartner profile for `user` (should have role=RESCUE_PARTNER,
+    though this helper doesn't enforce that — same convention as
+    make_recipient not enforcing role=RECIPIENT)."""
+    from app.models.enums import PartnerType
+    from app.models.rescue_partner import RescuePartner
+
+    partner = RescuePartner(
+        user_id=user.id,
+        organization_name=extra.pop("organization_name", "Swift Rescue Transport"),
+        partner_type=partner_type or PartnerType.TRANSPORT_ORG,
+        is_available=is_available,
+        accepts_food=accepts_food,
+        accepts_medical=accepts_medical,
+        is_verified=is_verified,
+        **extra,
+    )
+    db.add(partner)
+    db.commit()
+    db.refresh(partner)
+    return partner

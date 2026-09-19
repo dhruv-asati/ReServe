@@ -45,12 +45,24 @@ class RescueOperation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[OperationStatus] = mapped_column(
         Enum(OperationStatus, name="operation_status", values_callable=lambda e: [m.value for m in e]),
         nullable=False,
-        default=OperationStatus.CREATED,
+        default=OperationStatus.PLANNED,
         index=True,
     )
 
     pickup_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set when status transitions to FAILED; explains what went wrong
+    # (e.g. "recipient no longer reachable", "vehicle breakdown").
+    failure_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Latest known position of whoever is executing this operation (set via
+    # PATCH /api/operations/{operation_id}/location). Only the most recent
+    # fix is kept — this is a "where is it now" pointer, not a location
+    # history/trail, so it's plain columns rather than its own table.
+    current_latitude: Mapped[Optional[float]] = mapped_column(nullable=True)
+    current_longitude: Mapped[Optional[float]] = mapped_column(nullable=True)
+    location_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # --- Relationships ---
     rescue_request: Mapped["RescueRequest"] = relationship("RescueRequest", back_populates="operation")

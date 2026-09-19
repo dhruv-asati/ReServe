@@ -28,9 +28,10 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
     response_model=SuccessResponse[UserPublic],
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
-    description="Creates a new account. `role` must be one of PROVIDER, RECIPIENT, "
-    "RESCUE_PARTNER, or ADMIN. Passwords are hashed with bcrypt before storage. Fails with "
-    "409 if the email is already registered.",
+    description="Creates a new account. `role` must be one of PROVIDER, RECIPIENT, or "
+    "RESCUE_PARTNER — ADMIN accounts cannot be self-registered and must be created "
+    "out-of-band. Passwords are hashed with bcrypt before storage. Fails with 409 if the "
+    "email is already registered.",
 )
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     user = auth_service.register_user(db, payload)
