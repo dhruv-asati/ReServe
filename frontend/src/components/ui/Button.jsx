@@ -13,7 +13,7 @@ import { cn } from '@/utils/cn';
  */
 const VARIANTS = {
   primary:
-    'bg-brand-600 text-white hover:bg-brand-500 active:bg-brand-700 disabled:bg-brand-700/50',
+    'bg-veil-600/50 text-white hover:bg-veil-500 active:bg-veil-700 disabled:bg-veil-700/50',
   secondary:
     'bg-surface-3 text-content hover:bg-line-strong active:bg-surface-2 border border-line',
   ghost: 'text-muted hover:text-content hover:bg-surface-2',

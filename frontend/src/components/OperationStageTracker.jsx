@@ -44,7 +44,7 @@ export default function OperationStageTracker({ stages = [] }) {
               <span
                 className={cn(
                   'absolute left-[15px] top-8 h-[calc(100%-1.75rem)] w-px',
-                  isCompleted ? 'bg-brand-500/50' : 'bg-line',
+                  isCompleted ? 'bg-veil-500/50' : 'bg-line',
                 )}
               />
             )}
@@ -52,7 +52,7 @@ export default function OperationStageTracker({ stages = [] }) {
             <span
               className={cn(
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ring-inset',
-                isCompleted && 'bg-brand-500/15 text-brand-400 ring-brand-500/30',
+                isCompleted && 'bg-veil-500/15 text-veil-400 ring-veil-500/30',
                 isCurrent && 'animate-pulse-soft bg-active/15 text-active ring-active/40',
                 isEnded && 'bg-critical/15 text-critical ring-critical/40',
                 stage.state === 'upcoming' && 'bg-surface-3 text-faint ring-line',

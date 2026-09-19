@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, Search, Bell, Plus, ChevronDown, LogOut, UserCircle } from 'lucide-react';
+import { Search, Bell, Plus, ChevronDown, LogOut, UserCircle } from 'lucide-react';
 
 import { Button, Badge } from '@/components/ui';
 import { NAV_ITEMS } from '@/routes/navigation';
@@ -22,20 +22,15 @@ const ROLE_LABELS = {
  * bounded by a deadline, so the operator should always see the current time
  * next to the window they are working against.
  */
-export default function Topbar({ onOpenMenu, notificationCount = 0 }) {
+export default function Topbar({ notificationCount = 0 }) {
   const { pathname } = useLocation();
   const title = resolveTitle(pathname);
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface-1/95 px-4 backdrop-blur-sm sm:px-6">
-      <button
-        type="button"
-        onClick={onOpenMenu}
-        aria-label="Open navigation"
-        className="-ml-1 rounded-control p-2 text-muted transition-colors hover:bg-surface-2 hover:text-content lg:hidden"
-      >
-        <Menu size={18} strokeWidth={1.75} />
-      </button>
+      {/* Room for the StaggeredMenu toggle + logo mark, which sit fixed over this
+          bar: 5.5rem button + 0.75rem gap + 1.75rem logo = 8rem (see StaggeredMenu.css) */}
+      <div aria-hidden="true" className="w-32 shrink-0" />
 
       <div className="min-w-0 flex-1">
         <h1 className="truncate text-sm font-semibold tracking-tight text-content sm:text-base">

@@ -35,7 +35,7 @@ export default function Tabs({ tabs, value, onChange, className }) {
               'sm:gap-2 sm:px-3.5 sm:text-sm',
               'transition-colors duration-150',
               active
-                ? 'bg-brand-600 text-white'
+                ? 'bg-veil-600 text-white'
                 : 'text-muted hover:bg-surface-3 hover:text-content',
             )}
           >

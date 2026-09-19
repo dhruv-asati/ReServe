@@ -155,12 +155,12 @@ export default function Dashboard() {
         <Card.Body>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {QUICK_ACTIONS.map(({ label, to, icon: Icon }) => (
-              <Link key={label} to={to} className="block">
+              <Link key={label} to={to} className="group block">
                 <Card
                   interactive
                   className="flex h-full flex-col items-center justify-center gap-2 px-3 py-5 text-center"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-control bg-brand-500/10 text-brand-400">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-control bg-veil-500/10 text-veil-400 transition-colors duration-150 group-hover:bg-veil-500/20">
                     <Icon size={18} strokeWidth={1.75} />
                   </span>
                   <span className="text-xs font-medium text-content">{label}</span>

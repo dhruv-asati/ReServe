@@ -1,7 +1,7 @@
-import { NavLink, Link } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, LifeBuoy, ChevronRight } from 'lucide-react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
+import { PanelLeftClose, PanelLeftOpen, ChevronRight } from 'lucide-react';
 
-import { NAV_GROUPS } from '@/routes/navigation';
+import { NAV_GROUPS, isExactMatchOnly } from '@/routes/navigation';
 import { PATHS } from '@/routes/paths';
 import { cn } from '@/utils/cn';
 
@@ -104,18 +104,19 @@ export function Logo({ size = 28 }) {
 
 function NavItem({ item, collapsed, count }) {
   const Icon = item.icon;
+  const { pathname } = useLocation();
 
   return (
     <NavLink
       to={item.to}
-      end={item.end}
+      end={isExactMatchOnly(item, pathname)}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         cn(
           'group relative flex items-center rounded-control text-sm transition-colors duration-150',
           collapsed ? 'h-10 justify-center' : 'h-9.5 gap-2.5 px-2.5',
           isActive
-            ? 'bg-brand-500/10 font-medium text-brand-300'
+            ? 'bg-veil-500/20 font-medium text-white'
             : 'text-muted hover:bg-surface-2 hover:text-content',
         )
       }
@@ -125,7 +126,7 @@ function NavItem({ item, collapsed, count }) {
           {/* Active rail marker */}
           <span
             className={cn(
-              'absolute left-0 h-5 w-0.5 rounded-r-full bg-brand-400 transition-opacity',
+              'absolute left-0 h-5 w-0.5 rounded-r-full bg-veil-400 transition-opacity',
               isActive ? 'opacity-100' : 'opacity-0',
             )}
           />
@@ -149,18 +150,6 @@ function NavItem({ item, collapsed, count }) {
 function SidebarFooter({ collapsed, onToggleCollapse }) {
   return (
     <div className="shrink-0 border-t border-line p-3">
-      {!collapsed && (
-        <div className="mb-2 rounded-control border border-line bg-surface-2 p-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-content">
-            <LifeBuoy size={14} strokeWidth={1.75} className="text-brand-400" />
-            Demo environment
-          </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-faint">
-            Data shown is simulated for demonstration.
-          </p>
-        </div>
-      )}
-
       <button
         type="button"
         onClick={onToggleCollapse}

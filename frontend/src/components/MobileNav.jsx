@@ -1,7 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 
-import { MOBILE_NAV_ITEMS } from '@/routes/navigation';
+import { MOBILE_NAV_ITEMS, isExactMatchOnly } from '@/routes/navigation';
 import { PATHS } from '@/routes/paths';
 import { cn } from '@/utils/cn';
 
@@ -34,15 +34,16 @@ export default function MobileNav({ counts = {} }) {
 
 function Tab({ item, count }) {
   const Icon = item.icon;
+  const { pathname } = useLocation();
 
   return (
     <NavLink
       to={item.to}
-      end={item.end}
+      end={isExactMatchOnly(item, pathname)}
       className={({ isActive }) =>
         cn(
           'flex h-14 flex-col items-center justify-center gap-1 text-[10px] transition-colors',
-          isActive ? 'text-brand-300' : 'text-faint',
+          isActive ? 'text-white' : 'text-faint',
         )
       }
     >

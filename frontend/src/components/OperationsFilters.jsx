@@ -69,9 +69,9 @@ export default function OperationsFilters({ filters, counts, onChange, onClear }
                   className={cn(
                     'inline-flex h-8 cursor-pointer select-none items-center gap-2 whitespace-nowrap rounded-control border px-3 text-[13px] font-medium tracking-tight',
                     'transition-colors duration-150',
-                    'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-400',
+                    'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-veil-400',
                     checked
-                      ? 'border-brand-600 bg-brand-600 text-white'
+                      ? 'border-veil-600 bg-veil-600 text-white'
                       : 'border-line bg-surface-2 text-muted hover:border-line-strong hover:bg-surface-3 hover:text-content',
                   )}
                 >
@@ -127,7 +127,7 @@ export default function OperationsFilters({ filters, counts, onChange, onClear }
               }}
               placeholder="Search operations..."
               aria-describedby={hintId}
-              className="h-9.5 w-full rounded-control border border-line bg-surface-2 pl-9 pr-9 text-sm text-content transition-colors duration-150 placeholder:text-faint hover:border-line-strong focus:border-brand-500 focus:outline-none"
+              className="h-9.5 w-full rounded-control border border-line bg-surface-2 pl-9 pr-9 text-sm text-content transition-colors duration-150 placeholder:text-faint hover:border-line-strong focus:border-veil-500 focus:outline-none"
             />
             {query && (
               <button

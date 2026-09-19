@@ -15,6 +15,8 @@ import { PATHS } from './paths';
  *
  * `end` marks routes that should only highlight on an exact match, so the
  * dashboard index does not stay active while a child route is open.
+ * `exclude` lists sibling paths that share this item's prefix but belong to
+ * another item (e.g. /app/rescues/new must not highlight "Requests").
  * `badgeKey` names a live counter the shell can fill in later (open requests,
  * in-flight operations) without changing this file.
  */
@@ -24,7 +26,13 @@ export const NAV_GROUPS = [
     items: [
       { label: 'Overview', to: PATHS.DASHBOARD, icon: LayoutDashboard, end: true },
       { label: 'Create Rescue', to: PATHS.CREATE_RESCUE, icon: PlusCircle },
-      { label: 'Requests', to: PATHS.RESCUE_REQUESTS, icon: ClipboardList, badgeKey: 'requests', end: true },
+      {
+        label: 'Requests',
+        to: PATHS.RESCUE_REQUESTS,
+        icon: ClipboardList,
+        badgeKey: 'requests',
+        exclude: [PATHS.CREATE_RESCUE],
+      },
       { label: 'Matching', to: PATHS.MATCHING, icon: GitBranch },
       { label: 'Live Operations', to: PATHS.LIVE_OPERATIONS, icon: Radio, badgeKey: 'live' },
     ],
@@ -49,3 +57,13 @@ export const MOBILE_NAV_ITEMS = [
   NAV_ITEMS[4], // Live Operations
   NAV_ITEMS[5], // Rescue Network
 ];
+
+/**
+ * True when a link should only highlight on an exact match: either it opted in
+ * with `end`, or the current page belongs to a sibling listed in `exclude`.
+ * Pass the result to NavLink's `end` prop.
+ */
+export function isExactMatchOnly(item, pathname) {
+  if (item.end) return true;
+  return (item.exclude ?? []).some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
