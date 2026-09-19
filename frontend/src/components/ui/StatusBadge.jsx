@@ -4,10 +4,18 @@ import { cn } from '@/utils/cn';
 
 /**
  * Badge bound to the operational status vocabulary in src/utils/theme.js.
- * Live statuses (analyzing, reallocating, in transit) get a pulsing dot so
- * an operator can spot movement without reading every row.
+ * Live statuses (analyzing, matching, pickup in progress, reallocating,
+ * in transit) get a pulsing dot so an operator can spot movement without
+ * reading every row.
  */
-const LIVE = new Set(['analyzing', 'reallocating', 'in_transit', 'dispatched']);
+const LIVE = new Set([
+  'analyzing',
+  'matching',
+  'pickup_in_progress',
+  'reallocating',
+  'in_transit',
+  'dispatched',
+]);
 
 export default function StatusBadge({ status, size = 'md', className, ...props }) {
   const meta = STATUS_META[status];

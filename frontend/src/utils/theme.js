@@ -12,9 +12,13 @@
 export const STATUS = {
   DRAFT: 'draft',
   PENDING: 'pending',
+  CREATED: 'created',
   ANALYZING: 'analyzing',
+  MATCHING: 'matching',
   MATCHED: 'matched',
+  PARTNER_ASSIGNED: 'partner_assigned',
   PICKUP_ASSIGNED: 'pickup_assigned',
+  PICKUP_IN_PROGRESS: 'pickup_in_progress',
   DISPATCHED: 'dispatched',
   IN_TRANSIT: 'in_transit',
   DELIVERED: 'delivered',
@@ -40,8 +44,18 @@ export const STATUS_META = {
     className: 'bg-idle/10 text-idle ring-idle/25',
     color: '#64748b',
   },
+  [STATUS.CREATED]: {
+    label: 'Created',
+    className: 'bg-idle/10 text-idle ring-idle/25',
+    color: '#64748b',
+  },
   [STATUS.ANALYZING]: {
     label: 'Analyzing',
+    className: 'bg-active/10 text-active ring-active/25',
+    color: '#38bdf8',
+  },
+  [STATUS.MATCHING]: {
+    label: 'Matching',
     className: 'bg-active/10 text-active ring-active/25',
     color: '#38bdf8',
   },
@@ -50,10 +64,20 @@ export const STATUS_META = {
     className: 'bg-brand-500/10 text-brand-400 ring-brand-500/25',
     color: '#14b98f',
   },
+  [STATUS.PARTNER_ASSIGNED]: {
+    label: 'Partner Assigned',
+    className: 'bg-predicted/10 text-predicted ring-predicted/25',
+    color: '#a78bfa',
+  },
   [STATUS.PICKUP_ASSIGNED]: {
     label: 'Pickup Assigned',
     className: 'bg-predicted/10 text-predicted ring-predicted/25',
     color: '#a78bfa',
+  },
+  [STATUS.PICKUP_IN_PROGRESS]: {
+    label: 'Pickup in Progress',
+    className: 'bg-active/10 text-active ring-active/25',
+    color: '#38bdf8',
   },
   [STATUS.DISPATCHED]: {
     label: 'Dispatched',
@@ -61,7 +85,7 @@ export const STATUS_META = {
     color: '#38bdf8',
   },
   [STATUS.IN_TRANSIT]: {
-    label: 'In transit',
+    label: 'In Transit',
     className: 'bg-active/10 text-active ring-active/25',
     color: '#38bdf8',
   },

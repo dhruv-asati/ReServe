@@ -1,48 +1,159 @@
-import { useEffect, useState } from 'react';
-import { FlaskConical, Map, Radio } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { FilterX, FlaskConical, Map, Radio, SearchX } from 'lucide-react';
 
-import { Card, Badge, LoadingState } from '@/components/ui';
+import { Card, Badge, Button, EmptyState, LoadingState } from '@/components/ui';
+import OperationListCard from '@/components/OperationListCard';
+import OperationsTable from '@/components/OperationsTable';
+import OperationsFilters from '@/components/OperationsFilters';
 import OperationSummaryCard from '@/components/OperationSummaryCard';
 import OperationStageTracker from '@/components/OperationStageTracker';
 import MapPreview from '@/components/MapPreview';
 import MapLegend from '@/components/MapLegend';
 import {
-  getDemoOperation,
-  getDemoOperationStages,
-  getDemoOperationLocations,
-  getDemoOperationRoute,
-} from '@/services/operationDetailService';
+  getRescueOperations,
+  getRescueOperationDetail,
+} from '@/services/rescueOperationsService';
+import {
+  DEFAULT_FILTERS,
+  countQuickFilters,
+  filterOperations,
+  hasActiveFilters,
+} from '@/utils/operationFilters';
+
+/** The operation whose details show until the user picks another (RS-1024). */
+const DEFAULT_OPERATION_ID = 'RS-1024';
+
+/** Longest search text echoed back in the empty state, so it can never overflow. */
+const MAX_ECHOED_QUERY = 40;
+
+/** Empty-state copy: says what found nothing, and what to try next. */
+function noMatchDescription({ query }) {
+  const text = query.trim().replace(/\s+/g, ' ');
+  if (!text) {
+    return 'No operation fits the selected filters. Try a different combination, or clear the filters to see every operation.';
+  }
+  const shown = text.length > MAX_ECHOED_QUERY ? `${text.slice(0, MAX_ECHOED_QUERY)}…` : text;
+  return `Nothing matched “${shown}” with the current filters. Check the spelling, try a shorter search, or clear the filters.`;
+}
 
 /**
  * Operations — the Operations Control Center (`/app/operations`).
  *
- * Shows a single demo rescue operation (RS-1024) end to end: a status
- * summary, a 7-stage progress tracker, and a map area with an illustrative
- * route. Everything on this page is frontend-only mock data (see
- * data/operationDetail.js) fetched through operationDetailService, the same
- * mock-request pattern used by the rest of the app. There is no backend, no
- * live GPS tracking, and no real-world rescue-partner dispatch behind it —
- * every illustrative figure (stage timestamps, ETA, route, map position) is
- * called out as demo information.
+ * Two parts, top to bottom:
+ *
+ *   1. A list of rescue operations — a table from `xl` up, cards below — with
+ *      ID, resource, quantity, provider, recipient, rescue partner, status,
+ *      ETA and deadline. Every operation is selectable. Above it, a filter
+ *      bar (OperationsFilters) narrows the list by quick filter, status,
+ *      resource type and search text; the rules live in
+ *      utils/operationFilters.js. Filtering is instant and client-side, and
+ *      only changes which rows are listed — the selected operation and its
+ *      details below are left as they are.
+ *   2. The details view for the selected operation: a status summary, a
+ *      7-stage progress tracker, and a map area with an illustrative route.
+ *      RS-1024 is selected by default, so the page still opens on the same
+ *      details it always showed.
+ *
+ * The selection lives in the URL (`?operation=RS-1025`), so it survives a
+ * refresh and can be linked to. An unknown id falls back to RS-1024.
+ *
+ * Everything on this page is frontend-only mock data (see
+ * data/rescueOperations.js and data/operationDetail.js) fetched through
+ * rescueOperationsService, the same mock-request pattern used by the rest of
+ * the app. There is no backend, no live GPS tracking, and no real-world
+ * rescue-partner dispatch behind it — every illustrative figure (stage
+ * timestamps, ETA, route, map position) is called out as demo information.
  */
 export default function Operations() {
-  const [operation, setOperation] = useState(null);
-  const [stages, setStages] = useState(null);
-  const [locations, setLocations] = useState(null);
-  const [route, setRoute] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get('operation') ?? DEFAULT_OPERATION_ID;
+
+  const [operations, setOperations] = useState(null);
+  const [detail, setDetail] = useState(null);
+
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  const detailsRef = useRef(null);
+  const detailsHeadingRef = useRef(null);
+  const listHeadingRef = useRef(null);
 
   useEffect(() => {
     let active = true;
-
-    getDemoOperation().then((data) => active && setOperation(data));
-    getDemoOperationStages().then((data) => active && setStages(data));
-    getDemoOperationLocations().then((data) => active && setLocations(data));
-    getDemoOperationRoute().then((data) => active && setRoute(data));
-
+    getRescueOperations().then((data) => active && setOperations(data));
     return () => {
       active = false;
     };
   }, []);
+
+  // Load the selected operation's details. `detail` resets to null first so
+  // the cards below show their loading state instead of the previous
+  // operation's data.
+  useEffect(() => {
+    let active = true;
+    setDetail(null);
+    getRescueOperationDetail(selectedId).then((data) => active && setDetail(data));
+    return () => {
+      active = false;
+    };
+  }, [selectedId]);
+
+  // A hand-edited ?operation= that matches nothing falls back to the default.
+  useEffect(() => {
+    if (operations && !operations.some((operation) => operation.id === selectedId)) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [operations, selectedId, setSearchParams]);
+
+  // Select an operation, then bring its details into view — on mobile the
+  // details sit well below the list, so selecting would otherwise look like
+  // nothing happened.
+  const handleSelect = useCallback(
+    (operation) => {
+      setSearchParams({ operation: operation.id }, { replace: true });
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      detailsRef.current?.scrollIntoView({
+        behavior: reduceMotion ? 'auto' : 'smooth',
+        block: 'start',
+      });
+      detailsHeadingRef.current?.focus({ preventScroll: true });
+    },
+    [setSearchParams],
+  );
+
+  const updateFilter = useCallback(
+    (key, value) => setFilters((current) => ({ ...current, [key]: value })),
+    [],
+  );
+  const clearFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
+
+  // Clearing from the empty state removes the button that was just pressed, so
+  // hand focus to the list heading instead of letting it fall back to <body>.
+  const clearFromEmptyState = useCallback(() => {
+    setFilters(DEFAULT_FILTERS);
+    listHeadingRef.current?.focus();
+  }, []);
+
+  const filtersActive = hasActiveFilters(filters);
+  const quickCounts = useMemo(
+    () => (operations ? countQuickFilters(operations) : null),
+    [operations],
+  );
+  const visibleOperations = useMemo(
+    () => (operations ? filterOperations(operations, filters) : null),
+    [operations, filters],
+  );
+
+  const operation = detail?.operation ?? null;
+  const hasRoute = Boolean(detail?.route);
+
+  let routeSubtitle = 'Illustrative route between the provider and the recipient.';
+  if (operation && hasRoute) {
+    routeSubtitle = `Illustrative route from ${operation.provider} to ${operation.recipient}, ${operation.location}.`;
+  } else if (operation) {
+    routeSubtitle = 'Provider location only — no route to show for this operation.';
+  }
 
   return (
     <div className="animate-fade-up space-y-6 lg:space-y-8">
@@ -53,72 +164,179 @@ export default function Operations() {
             Operations Control Center
           </h1>
           <Badge tone="predicted" icon={FlaskConical} size="sm">
-            DEMO / MOCK OPERATION
+            DEMO / MOCK DATA
           </Badge>
         </div>
         <p className="mt-1.5 text-sm text-muted">
-          A single illustrative rescue, shown end to end — status, progress, and location.
+          Every rescue operation in one list. Select one to see its status, progress, and location.
         </p>
       </div>
 
-      {/* ---------- Operation summary ---------- */}
-      {operation === null ? (
-        <Card>
-          <Card.Body>
-            <LoadingState label="Loading operation…" />
-          </Card.Body>
-        </Card>
-      ) : (
-        <OperationSummaryCard operation={operation} />
-      )}
+      {/* ---------- Operations list ---------- */}
+      <section aria-labelledby="operations-list-heading">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2
+            id="operations-list-heading"
+            ref={listHeadingRef}
+            tabIndex={-1}
+            className="text-base font-semibold tracking-tight text-content"
+          >
+            Operations
+          </h2>
+          {/* A status region, so screen readers hear the new count as the list changes. */}
+          {operations && (
+            <p role="status" className="text-xs text-muted">
+              {filtersActive
+                ? `Showing ${visibleOperations.length} of ${operations.length} operation${operations.length === 1 ? '' : 's'}`
+                : `${operations.length} operation${operations.length === 1 ? '' : 's'}`}
+            </p>
+          )}
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:gap-8 xl:grid-cols-2">
-        {/* ---------- Operation progress ---------- */}
-        <Card>
-          <Card.Header
-            icon={Radio}
-            title="Operation Progress"
-            subtitle="Created → AI Analyzed → Matched → Partner Assigned → Pickup Started → In Transit → Delivered."
+        {/* Hidden only when loading has finished and there is nothing to filter. */}
+        {(operations === null || operations.length > 0) && (
+          <OperationsFilters
+            filters={filters}
+            counts={quickCounts}
+            onChange={updateFilter}
+            onClear={clearFilters}
           />
-          <Card.Body>
-            {stages === null ? (
-              <LoadingState label="Loading progress…" />
-            ) : (
-              <>
-                <OperationStageTracker stages={stages} />
-                <p className="mt-4 border-t border-line pt-3 text-[11px] text-faint">
-                  Timestamps are hardcoded, illustrative values for this demo — not a live or
-                  auto-refreshing feed.
-                </p>
-              </>
-            )}
-          </Card.Body>
-        </Card>
+        )}
 
-        {/* ---------- Route / map area ---------- */}
-        <Card>
-          <Card.Header
-            icon={Map}
-            title="Route (Demo)"
-            subtitle="Illustrative route from Hotel XYZ to NGO A, Indiranagar, Bengaluru."
-          />
-          <Card.Body className="space-y-4">
-            {locations === null ? (
-              <LoadingState label="Loading map…" />
-            ) : (
-              <>
-                <MapPreview locations={locations} route={route} zoom={14} />
-                <MapLegend />
-                <p className="text-[11px] text-faint">
-                  Dashed line is a mock, hand-placed route for this demo — not generated by a
-                  routing engine. Positions, the ETA, and the rescue partner marker are
-                  illustrative only and are not a live GPS feed or vehicle location.
-                </p>
-              </>
-            )}
-          </Card.Body>
-        </Card>
-      </div>
+        {operations === null ? (
+          <LoadingState variant="skeleton" rows={5} label="Loading operations…" />
+        ) : operations.length === 0 ? (
+          <div className="panel">
+            <EmptyState
+              icon={Radio}
+              title="No rescue operations yet"
+              description="Operations show up here once a rescue has been created."
+            />
+          </div>
+        ) : visibleOperations.length === 0 ? (
+          <div className="panel">
+            <EmptyState
+              icon={SearchX}
+              title="No operations match your filters"
+              description={noMatchDescription(filters)}
+              action={
+                <Button variant="secondary" icon={FilterX} onClick={clearFromEmptyState}>
+                  Clear Filters
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <>
+            {/* Desktop: table */}
+            <div className="hidden xl:block">
+              <OperationsTable
+                operations={visibleOperations}
+                selectedId={selectedId}
+                onSelect={handleSelect}
+              />
+            </div>
+
+            {/* Mobile + tablet: cards */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
+              {visibleOperations.map((item) => (
+                <OperationListCard
+                  key={item.id}
+                  operation={item}
+                  selected={item.id === selectedId}
+                  onSelect={handleSelect}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        <p className="mt-3 text-[11px] text-faint">
+          Mock data — operations, providers, recipients, rescue partners, ETAs and deadlines are
+          illustrative, not a live feed.
+        </p>
+      </section>
+
+      {/* ---------- Selected operation details ---------- */}
+      <section
+        ref={detailsRef}
+        aria-labelledby="operation-details-heading"
+        className="scroll-mt-20 space-y-6 lg:space-y-8"
+      >
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h2
+            id="operation-details-heading"
+            ref={detailsHeadingRef}
+            tabIndex={-1}
+            className="text-base font-semibold tracking-tight text-content"
+          >
+            Operation details
+          </h2>
+          <span className="font-mono text-xs text-muted">{selectedId}</span>
+        </div>
+
+        {/* ---------- Operation summary ---------- */}
+        {operation === null ? (
+          <Card>
+            <Card.Body>
+              <LoadingState label="Loading operation…" />
+            </Card.Body>
+          </Card>
+        ) : (
+          <OperationSummaryCard operation={operation} />
+        )}
+
+        <div className="grid grid-cols-1 gap-6 lg:gap-8 xl:grid-cols-2">
+          {/* ---------- Operation progress ---------- */}
+          <Card>
+            <Card.Header
+              icon={Radio}
+              title="Operation Progress"
+              subtitle="Created → AI Analyzed → Matched → Partner Assigned → Pickup Started → In Transit → Delivered."
+            />
+            <Card.Body>
+              {detail === null ? (
+                <LoadingState label="Loading progress…" />
+              ) : (
+                <>
+                  <OperationStageTracker stages={detail.stages} />
+                  <p className="mt-4 border-t border-line pt-3 text-[11px] text-faint">
+                    Timestamps are hardcoded, illustrative values for this demo — not a live or
+                    auto-refreshing feed.
+                  </p>
+                </>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* ---------- Route / map area ---------- */}
+          <Card>
+            <Card.Header icon={Map} title="Route (Demo)" subtitle={routeSubtitle} />
+            <Card.Body className="space-y-4">
+              {detail === null ? (
+                <LoadingState label="Loading map…" />
+              ) : (
+                <>
+                  {/* Keyed by operation so the map re-centres on each selection —
+                      the map's centre is only read when it first mounts. */}
+                  <MapPreview
+                    key={detail.operation.id}
+                    locations={detail.locations}
+                    route={detail.route}
+                    zoom={detail.zoom}
+                  />
+                  <MapLegend />
+                  <p className="text-[11px] text-faint">
+                    {hasRoute
+                      ? 'Dashed line is a mock, hand-placed route for this demo — not generated by a routing engine. Positions, the ETA, and the rescue partner marker are illustrative only and are not a live GPS feed or vehicle location.'
+                      : 'Marker positions are illustrative only for this demo — not a live GPS feed or vehicle location.'}
+                  </p>
+                </>
+              )}
+            </Card.Body>
+          </Card>
+        </div>
+      </section>
     </div>
   );
 }

@@ -8,9 +8,14 @@ import { RESOURCE_ICONS } from '@/utils/icons';
  * Center: what's moving, who's involved, and where it stands right now.
  *
  * Frontend only: everything passed in via `operation` is demo/mock data
- * (see data/operationDetail.js) — the ETA is an illustrative estimate, not
- * a live GPS-calculated arrival time, and the rescue partner is a demo
- * label, not a real-world dispatch assignment.
+ * (see data/operationDetail.js and data/rescueOperations.js) — the ETA is an
+ * illustrative estimate, not a live GPS-calculated arrival time, and the
+ * rescue partner is a demo label, not a real-world dispatch assignment.
+ *
+ * `recipient` and `partner` may be null while an operation is still being
+ * matched. An optional `headline` replaces the default "{quantity}
+ * {resource}" title (used where a unit reads better, e.g. "35 boxes of
+ * Bakery Surplus").
  */
 export default function OperationSummaryCard({ operation }) {
   const {
@@ -27,6 +32,7 @@ export default function OperationSummaryCard({ operation }) {
     etaNote,
     deadline,
     summary,
+    headline,
   } = operation;
 
   const Icon = RESOURCE_ICONS[resourceType];
@@ -35,7 +41,7 @@ export default function OperationSummaryCard({ operation }) {
     <Card>
       <Card.Header
         icon={Icon}
-        title={`${quantity} ${resource}`}
+        title={headline ?? `${quantity} ${resource}`}
         subtitle={id}
         action={<StatusBadge status={status} />}
       />
@@ -48,9 +54,13 @@ export default function OperationSummaryCard({ operation }) {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailRow icon={Store} label="Provider" value={provider} />
-          <DetailRow icon={Users} label="Recipient" value={recipient} />
+          <DetailRow icon={Users} label="Recipient" value={recipient ?? 'Not matched yet'} />
           <DetailRow icon={MapPin} label="Location" value={location} />
-          <DetailRow icon={Truck} label="Rescue Partner" value={`${partner} (demo)`} />
+          <DetailRow
+            icon={Truck}
+            label="Rescue Partner"
+            value={partner ? `${partner} (demo)` : 'Not assigned yet'}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-3 border-t border-line pt-4 sm:grid-cols-2">

@@ -1,4 +1,4 @@
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 import { ACTIVITY_STAGE_ICONS } from '@/utils/icons';
 import { cn } from '@/utils/cn';
@@ -15,6 +15,10 @@ import { cn } from '@/utils/cn';
  * what's left. Built on the same dot-and-line visual language as
  * ActivityTimeline so it reads as part of the same design system.
  *
+ * A stage may also be `state: 'ended'` — the terminal stage of an operation
+ * that was cancelled or expired. It renders in the critical colour with an X
+ * icon, and such an operation lists no upcoming stages after it.
+ *
  * Frontend only: `stages` is demo data (see data/operationDetail.js).
  * Every timestamp shown is a hardcoded, illustrative value — never a live
  * or auto-refreshing clock — and upcoming stages intentionally carry no
@@ -27,7 +31,12 @@ export default function OperationStageTracker({ stages = [] }) {
         const isLast = index === stages.length - 1;
         const isCompleted = stage.state === 'completed';
         const isCurrent = stage.state === 'current';
-        const Icon = isCompleted ? CheckCircle2 : ACTIVITY_STAGE_ICONS[stage.key];
+        const isEnded = stage.state === 'ended';
+        const Icon = isEnded
+          ? XCircle
+          : isCompleted
+            ? CheckCircle2
+            : ACTIVITY_STAGE_ICONS[stage.key];
 
         return (
           <li key={stage.key} className="relative flex gap-3 pb-6 last:pb-0">
@@ -45,6 +54,7 @@ export default function OperationStageTracker({ stages = [] }) {
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ring-inset',
                 isCompleted && 'bg-brand-500/15 text-brand-400 ring-brand-500/30',
                 isCurrent && 'animate-pulse-soft bg-active/15 text-active ring-active/40',
+                isEnded && 'bg-critical/15 text-critical ring-critical/40',
                 stage.state === 'upcoming' && 'bg-surface-3 text-faint ring-line',
               )}
             >
