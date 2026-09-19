@@ -6,7 +6,7 @@ import { Outlet } from 'react-router-dom';
  */
 export default function PublicLayout() {
   return (
-    <div className="min-h-screen bg-surface-0">
+    <div className="min-h-screen bg-transparent">
       <Outlet />
     </div>
   );

@@ -41,7 +41,7 @@ export default function AppLayout() {
   }, [pathname]);
 
   return (
-    <div className="flex min-h-screen bg-surface-0">
+    <div className="flex min-h-screen bg-transparent">
       <Sidebar
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((value) => !value)}

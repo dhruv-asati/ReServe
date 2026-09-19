@@ -24,7 +24,7 @@ export const NAV_GROUPS = [
     items: [
       { label: 'Overview', to: PATHS.DASHBOARD, icon: LayoutDashboard, end: true },
       { label: 'Create Rescue', to: PATHS.CREATE_RESCUE, icon: PlusCircle },
-      { label: 'Requests', to: PATHS.RESCUE_REQUESTS, icon: ClipboardList, badgeKey: 'requests' },
+      { label: 'Requests', to: PATHS.RESCUE_REQUESTS, icon: ClipboardList, badgeKey: 'requests', end: true },
       { label: 'Matching', to: PATHS.MATCHING, icon: GitBranch },
       { label: 'Live Operations', to: PATHS.LIVE_OPERATIONS, icon: Radio, badgeKey: 'live' },
     ],

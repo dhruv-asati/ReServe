@@ -28,6 +28,11 @@
   --color-brand-600: #0d9373;
   --color-brand-700: #0a6f58;
 
+  /* Veil accent — matches the DarkVeil background's indigo/violet tint */
+  --color-veil-400: #9b8cf5;
+  --color-veil-500: #7c6cf0;
+  --color-veil-600: #5f4dd6;
+
   /* Operational status signals */
   --color-critical: #f4506a;
   --color-urgent: #f59e0b;

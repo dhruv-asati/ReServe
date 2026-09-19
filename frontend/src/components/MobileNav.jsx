@@ -68,7 +68,7 @@ function CreateTab() {
         <span
           className={cn(
             'grid h-11 w-11 -translate-y-3 place-items-center rounded-full ring-4 ring-surface-1 transition-colors',
-            isActive ? 'bg-brand-500 text-white' : 'bg-brand-600 text-white',
+            isActive ? 'bg-veil-500 text-white' : 'bg-veil-600 text-white',
           )}
         >
           <Plus size={20} strokeWidth={2.25} />
