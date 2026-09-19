@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Package,
@@ -20,12 +20,21 @@ import AtRiskCard from '@/components/AtRiskCard';
 import ActivityTimeline from '@/components/ActivityTimeline';
 import MapPreview from '@/components/MapPreview';
 import MapLegend from '@/components/MapLegend';
+import ReallocationWarning from '@/components/ReallocationWarning';
+import useReallocationDemo from '@/hooks/useReallocationDemo';
 import { PATHS } from '@/routes/paths';
 import { getDashboardOverview } from '@/services/dashboardService';
 import { getActiveOperations } from '@/services/operationsService';
 import { getAtRiskResources } from '@/services/resourcesService';
 import { getRecentActivity } from '@/services/activityService';
 import { getNetworkLocations } from '@/services/networkService';
+import {
+  applyDemoToActivity,
+  applyDemoToAtRiskResources,
+  applyDemoToDashboardStats,
+  applyDemoToOperations,
+  getReallocationView,
+} from '@/services/reallocationDemoService';
 
 const QUICK_ACTIONS = [
   { label: 'Create Rescue', to: PATHS.CREATE_RESCUE, icon: PlusCircle },
@@ -45,11 +54,27 @@ const QUICK_ACTIONS = [
  * read-only preview, not the full interactive Rescue Network page.
  */
 export default function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [operations, setOperations] = useState(null);
-  const [atRiskResources, setAtRiskResources] = useState(null);
-  const [activity, setActivity] = useState(null);
+  const [baseStats, setStats] = useState(null);
+  const [baseOperations, setOperations] = useState(null);
+  const [baseAtRisk, setAtRiskResources] = useState(null);
+  const [baseActivity, setActivity] = useState(null);
   const [networkLocations, setNetworkLocations] = useState(null);
+
+  // The RS-1024 recipient-unavailable demo (started on the Operations page)
+  // is layered over the fetched mock data, so this page shows the same
+  // Reallocating status, at-risk count and activity as every other page.
+  const demo = useReallocationDemo();
+  const reallocation = useMemo(() => getReallocationView(demo), [demo]);
+  const stats = useMemo(() => applyDemoToDashboardStats(baseStats, demo), [baseStats, demo]);
+  const operations = useMemo(
+    () => applyDemoToOperations(baseOperations, demo),
+    [baseOperations, demo],
+  );
+  const atRiskResources = useMemo(
+    () => applyDemoToAtRiskResources(baseAtRisk, demo),
+    [baseAtRisk, demo],
+  );
+  const activity = useMemo(() => applyDemoToActivity(baseActivity, demo), [baseActivity, demo]);
 
   useEffect(() => {
     let active = true;
@@ -77,6 +102,17 @@ export default function Dashboard() {
           Monitor resources, active rescues, and at-risk operations.
         </p>
       </div>
+
+      {reallocation.unavailable && (
+        <ReallocationWarning variant="compact" warning={reallocation.warning}>
+          <Link
+            to={PATHS.LIVE_OPERATIONS}
+            className="text-xs font-medium text-urgent underline underline-offset-2 hover:text-content"
+          >
+            View {reallocation.operationId} in Operations
+          </Link>
+        </ReallocationWarning>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

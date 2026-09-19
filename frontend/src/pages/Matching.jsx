@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowRight,
@@ -19,6 +19,8 @@ import {
 import { Badge, Button, Card, EmptyState, LoadingState, Skeleton } from '@/components/ui';
 import MatchCandidateCard from '@/components/MatchCandidateCard';
 import AllocationResultCard from '@/components/AllocationResultCard';
+import ReallocationWarning from '@/components/ReallocationWarning';
+import useReallocationDemo from '@/hooks/useReallocationDemo';
 import { RESOURCE_ICONS } from '@/utils/icons';
 import { RESOURCE_META, URGENCY_META } from '@/utils/theme';
 import { PATHS } from '@/routes/paths';
@@ -28,6 +30,10 @@ import {
   getMatchingResource,
   getMatchingCandidates,
 } from '@/services/matchingService';
+import {
+  applyDemoToMatchCandidates,
+  getReallocationView,
+} from '@/services/reallocationDemoService';
 
 /** Urgency → Badge tone. Same weighting AIAnalysis and AtRiskCard use. */
 const URGENCY_TONE = {
@@ -98,6 +104,12 @@ function validateAllocationPlan(resource, allocations) {
  * sequence. No algorithm, backend or API call is involved, and no recipients
  * are invented — results stay empty on purpose.
  *
+ * RS-1024 demo: when the operation's recipient has been marked unavailable
+ * on the Operations page, this page reflects it — NGO A cannot be selected,
+ * its 50-portion share drops out of the proposed allocation, and the plan
+ * validation below reports the unallocated remainder (so Confirm stays
+ * disabled). Nothing is sent anywhere; see services/reallocationDemoService.js.
+ *
  * Plan actions (in the Allocation Summary card): "Recalculate Match" replays
  * the simulated stages and restores the demo allocation; "Confirm Rescue
  * Plan" is only enabled while the allocation total equals the resource
@@ -106,7 +118,16 @@ function validateAllocationPlan(resource, allocations) {
  */
 export default function Matching() {
   const [resource, setResource] = useState(null);
-  const [candidates, setCandidates] = useState(null);
+  // The mock candidates as fetched. The RS-1024 recipient-unavailable demo
+  // (see the Operations page) is applied on top, so an unavailable NGO A is
+  // never offered or allocated here — not even after "Recalculate Match".
+  const [baseCandidates, setCandidates] = useState(null);
+  const demo = useReallocationDemo();
+  const candidates = useMemo(
+    () => applyDemoToMatchCandidates(baseCandidates, demo),
+    [baseCandidates, demo],
+  );
+  const reallocation = useMemo(() => getReallocationView(demo), [demo]);
   const [phase, setPhase] = useState(PHASE.IDLE);
   const [completedSteps, setCompletedSteps] = useState(0);
   const [lastRun, setLastRun] = useState('start'); // 'start' | 'recalculate'
@@ -221,6 +242,18 @@ export default function Matching() {
         </p>
       </div>
 
+      {/* ---------- RS-1024 recipient-unavailable demo notice ---------- */}
+      {reallocation.unavailable && (
+        <ReallocationWarning variant="compact" warning={reallocation.warning}>
+          <Link
+            to={PATHS.LIVE_OPERATIONS}
+            className="text-xs font-medium text-urgent underline underline-offset-2 hover:text-content"
+          >
+            Open {reallocation.operationId} in Operations
+          </Link>
+        </ReallocationWarning>
+      )}
+
       {/* ---------- 2. Selected resource summary ---------- */}
       <ResourceSummary
         resource={resource}
@@ -276,7 +309,9 @@ export default function Matching() {
                   <CheckCircle2 size={16} strokeWidth={2} className="shrink-0 text-success" />
                   <p className="text-sm font-medium text-success">
                     {lastRun === 'recalculate'
-                      ? 'Demo recalculation completed — demo allocation results restored.'
+                      ? reallocation.unavailable
+                        ? `Demo recalculation completed — ${reallocation.recipientName} is still unavailable, so ${reallocation.unplaced} ${reallocation.unit} remain unallocated.`
+                        : 'Demo recalculation completed — demo allocation results restored.'
                       : 'Matching analysis completed.'}
                   </p>
                 </div>

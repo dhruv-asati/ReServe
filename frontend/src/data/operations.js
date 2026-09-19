@@ -1,4 +1,5 @@
 import { STATUS, RESOURCE_TYPE } from '@/utils/theme';
+import { DEMO_OPERATION } from '@/data/operationDetail';
 
 /**
  * Mock active rescue operations for the dashboard.
@@ -8,6 +9,18 @@ import { STATUS, RESOURCE_TYPE } from '@/utils/theme';
  * the rest of the app will use once matching/operations pages are built.
  */
 export const ACTIVE_OPERATIONS = [
+  // RS-1024 is the demo operation from the Operations Control Center. It is
+  // built from DEMO_OPERATION so this card can never drift from that page.
+  {
+    id: DEMO_OPERATION.id,
+    resource: DEMO_OPERATION.resource,
+    resourceType: DEMO_OPERATION.resourceType,
+    quantity: `${DEMO_OPERATION.quantity} ${DEMO_OPERATION.unit}`,
+    provider: DEMO_OPERATION.provider,
+    recipient: DEMO_OPERATION.recipient,
+    status: DEMO_OPERATION.status,
+    eta: DEMO_OPERATION.eta,
+  },
   {
     id: 'RSC-2043',
     resource: 'Fresh produce',
