@@ -1,6 +1,6 @@
 import { Eye } from 'lucide-react';
 
-import { Badge, Button, Card, StatusBadge } from '@/components/ui';
+import { Button, Card, StatusBadge } from '@/components/ui';
 import { RESOURCE_ICONS } from '@/utils/icons';
 import { RESOURCE_META } from '@/utils/theme';
 

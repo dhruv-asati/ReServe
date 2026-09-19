@@ -31,7 +31,8 @@ export default function Tabs({ tabs, value, onChange, className }) {
             aria-selected={active}
             onClick={() => onChange(key)}
             className={cn(
-              'inline-flex h-8 items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-3.5 text-sm font-medium tracking-tight',
+              'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[calc(var(--radius-control)-2px)] px-2 text-[13px] font-medium tracking-tight',
+              'sm:gap-2 sm:px-3.5 sm:text-sm',
               'transition-colors duration-150',
               active
                 ? 'bg-brand-600 text-white'

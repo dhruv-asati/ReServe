@@ -10,6 +10,8 @@ import {
   Users,
   Truck,
   Warehouse,
+  Navigation,
+  PackageCheck,
 } from 'lucide-react';
 
 /**
@@ -25,7 +27,9 @@ export const RESOURCE_ICONS = {
 /**
  * Icon for each stage in the rescue lifecycle, used by ActivityTimeline.
  * Order mirrors the operational flow: created → analyzed → matched →
- * assigned → pickup → completed.
+ * assigned → pickup → completed. `in_transit` and `delivered` extend this
+ * set for the Operations Control Center's 7-stage tracker (OperationStageTracker),
+ * without changing the meaning of the existing keys used elsewhere.
  */
 export const ACTIVITY_STAGE_ICONS = {
   created: PackagePlus,
@@ -33,7 +37,9 @@ export const ACTIVITY_STAGE_ICONS = {
   matched: GitBranch,
   assigned: Handshake,
   pickup: Truck,
+  in_transit: Navigation,
   completed: CheckCircle2,
+  delivered: PackageCheck,
 };
 
 /**

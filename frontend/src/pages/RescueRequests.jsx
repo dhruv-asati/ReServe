@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FilterX, Inbox, Search, SearchX, X } from 'lucide-react';
 
-import { Badge, Button, EmptyState, LoadingState, Modal, Select, StatusBadge } from '@/components/ui';
-import Tabs from '@/components/ui/Tabs';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  LoadingState,
+  Modal,
+  Select,
+  StatusBadge,
+  Tabs,
+} from '@/components/ui';
 import RequestCard from '@/components/RequestCard';
 import RequestsTable from '@/components/RequestsTable';
 import {
@@ -134,8 +142,8 @@ function DetailField({ label, className = '', children }) {
  *
  * Search and the Status / Resource Type filters all narrow the active tab
  * together (AND). Search updates as the user types (Request ID, resource,
- * provider, recipient, location). Tab counts always show the full size of
- * each tab, regardless of search or filters. Search and filter values are
+ * provider, recipient, location). Tab counts (the badge on each tab) always show the
+ * full size of each tab, regardless of search or filters. Search and filter values are
  * kept when switching tabs.
  *
  * Layout:
@@ -192,22 +200,23 @@ export default function RescueRequests() {
     setResourceTypeFilter(ALL);
   };
 
-  // "Incoming (5)" — counts are the full tab size, not the search result size.
-  // While a tab is still loading its count is unknown, so only the label shows.
-  const tabLabel = (label, requests) => (requests ? `${label} (${requests.length})` : label);
-
+  // Counts are the full tab size, not the search result size. While a tab is
+  // still loading its count is undefined, so Tabs shows the label only.
   const tabs = [
     {
       key: TAB_KEYS.INCOMING,
-      label: tabLabel('Incoming', requestsByTab[TAB_KEYS.INCOMING]),
+      label: 'Incoming',
+      count: requestsByTab[TAB_KEYS.INCOMING]?.length,
     },
     {
       key: TAB_KEYS.OUTGOING,
-      label: tabLabel('Outgoing', requestsByTab[TAB_KEYS.OUTGOING]),
+      label: 'Outgoing',
+      count: requestsByTab[TAB_KEYS.OUTGOING]?.length,
     },
     {
       key: TAB_KEYS.COMPLETED,
-      label: tabLabel('Completed', requestsByTab[TAB_KEYS.COMPLETED]),
+      label: 'Completed',
+      count: requestsByTab[TAB_KEYS.COMPLETED]?.length,
     },
   ];
 

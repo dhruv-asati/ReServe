@@ -10,6 +10,8 @@ import CreateRescue from '@/pages/CreateRescue';
 import AIAnalysis from '@/pages/AIAnalysis';
 import ResourceDetails from '@/pages/ResourceDetails';
 import RescueRequests from '@/pages/RescueRequests';
+import Matching from '@/pages/Matching';
+import Operations from '@/pages/Operations';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 import { PATHS } from '@/routes/paths';
@@ -48,24 +50,8 @@ export default function AppRoutes() {
               />
             }
           />
-          <Route
-            path="matching"
-            element={
-              <Placeholder
-                title="Matching"
-                description="Planner queue: rescues awaiting or under allocation."
-              />
-            }
-          />
-          <Route
-            path="operations"
-            element={
-              <Placeholder
-                title="Live Operations"
-                description="In-flight rescues and reallocation events."
-              />
-            }
-          />
+          <Route path="matching" element={<Matching />} />
+          <Route path="operations" element={<Operations />} />
           <Route
             path="network"
             element={

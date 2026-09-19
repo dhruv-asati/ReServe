@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import { Map as MapIcon } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
@@ -55,9 +55,19 @@ function buildRoleIcon(role) {
  * rescue partner, rescue hub) has its own shape, not just a colour. The
  * full interactive map (search, routing, filters) is a separate, later
  * page — this is a compact preview only.
+ *
+ * `route` is an optional, illustrative-only polyline: an array of
+ * `{ lat, lng }` waypoints drawn as a dashed line (see Operations.jsx /
+ * data/operationDetail.js). It is a hardcoded mock path, not the output of
+ * a routing engine and not a live vehicle track — callers are responsible
+ * for labelling it as illustrative in surrounding copy.
  */
-export default function MapPreview({ locations = [] }) {
+export default function MapPreview({ locations = [], route = null, zoom = 12 }) {
   const center = useMemo(() => centerOf(locations), [locations]);
+  const routePositions = useMemo(
+    () => (route && route.length > 1 ? route.map((point) => [point.lat, point.lng]) : null),
+    [route],
+  );
   const icons = useMemo(() => {
     const cache = {};
     for (const role of Object.keys(NETWORK_ROLE_META)) {
@@ -80,7 +90,7 @@ export default function MapPreview({ locations = [] }) {
     <div className="map-preview-dark relative h-56 w-full overflow-hidden rounded-control sm:h-72 lg:h-[420px]">
       <MapContainer
         center={center}
-        zoom={12}
+        zoom={zoom}
         scrollWheelZoom={false}
         className="h-full w-full"
       >
@@ -88,6 +98,19 @@ export default function MapPreview({ locations = [] }) {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        {routePositions && (
+          <Polyline
+            positions={routePositions}
+            pathOptions={{
+              color: '#38bdf8',
+              weight: 3,
+              opacity: 0.85,
+              dashArray: '2 10',
+              lineCap: 'round',
+            }}
+          />
+        )}
 
         {locations.map((location) => {
           const meta = NETWORK_ROLE_META[location.role];
