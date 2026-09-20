@@ -24,7 +24,19 @@ const ROLE_LABELS = {
  */
 export default function Topbar({ notificationCount = 0 }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
   const title = resolveTitle(pathname);
+
+  // Search runs against the operations list (ID, resource, provider, recipient,
+  // rescue partner) — the Live Operations page reads it from `?q=`.
+  function handleSearch(event) {
+    event.preventDefault();
+    const text = query.trim();
+    const search = text ? `?${new URLSearchParams({ q: text })}` : '';
+    navigate(`${PATHS.LIVE_OPERATIONS}${search}`);
+    setQuery('');
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface-1/95 px-4 backdrop-blur-sm sm:px-6">
@@ -39,21 +51,30 @@ export default function Topbar({ notificationCount = 0 }) {
         <Clock />
       </div>
 
-      {/* Search — full control on desktop, icon on smaller screens */}
-      <button
-        type="button"
-        className="hidden h-9 w-56 items-center gap-2 rounded-control border border-line bg-surface-2 px-3 text-xs text-faint transition-colors hover:border-line-strong hover:text-muted xl:flex"
-      >
-        <Search size={14} strokeWidth={1.75} />
-        Search resources, partners…
-      </button>
-      <button
-        type="button"
-        aria-label="Search"
+      {/* Search — typeable field on desktop, link to the search page on smaller screens */}
+      <form role="search" onSubmit={handleSearch} className="relative hidden xl:block">
+        <Search
+          size={14}
+          strokeWidth={1.75}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint"
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          aria-label="Search operations"
+          placeholder="Search resources, partners…"
+          className="h-9 w-56 rounded-control border border-line bg-surface-2 pl-9 pr-3 text-xs text-content outline-none transition-colors placeholder:text-faint hover:border-line-strong focus:border-veil-500"
+        />
+      </form>
+      <Link
+        to={PATHS.LIVE_OPERATIONS}
+        aria-label="Search operations"
         className="rounded-control p-2 text-muted transition-colors hover:bg-surface-2 hover:text-content xl:hidden"
       >
         <Search size={17} strokeWidth={1.75} />
-      </button>
+      </Link>
 
       <button
         type="button"

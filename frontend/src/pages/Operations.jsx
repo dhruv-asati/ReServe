@@ -95,6 +95,22 @@ export default function Operations() {
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
+  // The topbar search lands here as `?q=…`. Apply it to the filter bar, then
+  // drop it from the URL so the same search can be run again later.
+  const urlQuery = searchParams.get('q') ?? '';
+  useEffect(() => {
+    if (!urlQuery) return;
+    setFilters((current) => ({ ...current, query: urlQuery }));
+    setSearchParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.delete('q');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [urlQuery, setSearchParams]);
+
   const detailsRef = useRef(null);
   const detailsHeadingRef = useRef(null);
   const listHeadingRef = useRef(null);

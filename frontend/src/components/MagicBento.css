@@ -1,0 +1,45 @@
+/* ============================================================
+   Magic Bento — border glow.
+
+   The GlobalSpotlight (MagicBento.jsx) writes --glow-x / --glow-y /
+   --glow-intensity onto every `.magic-bento-card` as the cursor moves;
+   the ::after ring below turns those into a glow that travels along the
+   card's border. --glow-color ("r, g, b") is set inline by <Card>.
+
+   Deliberately no `position` / `overflow` rules here: <Card> already
+   provides `relative overflow-hidden`, and an unlayered rule would
+   override utilities such as `lg:sticky` on individual cards.
+   ============================================================ */
+
+.magic-bento-card {
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
+  --glow-radius: 200px;
+  --glow-border-width: 3px; /* thickness of the glowing border */
+}
+
+.magic-bento-card--border-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: var(--glow-border-width);
+  border-radius: inherit;
+  background: radial-gradient(
+    var(--glow-radius) circle at var(--glow-x) var(--glow-y),
+    rgba(var(--glow-color), calc(var(--glow-intensity) * 0.8)) 0%,
+    rgba(var(--glow-color), calc(var(--glow-intensity) * 0.4)) 30%,
+    transparent 60%
+  );
+  /* Keep only the padding ring: content-box XOR border-box */
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
