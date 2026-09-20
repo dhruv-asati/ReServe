@@ -16,7 +16,7 @@ import { RESOURCE_META } from '@/utils/theme';
  */
 export default function RequestsTable({ requests, onViewDetails }) {
   return (
-    <div className="panel overflow-hidden">
+    <div className="panel overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">Rescue requests</caption>
         <thead>

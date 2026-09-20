@@ -2,6 +2,7 @@ import { Store, Users, Truck, MapPin, Clock, CalendarClock } from 'lucide-react'
 
 import { Card, StatusBadge, Badge } from '@/components/ui';
 import { RESOURCE_ICONS } from '@/utils/icons';
+import { cn } from '@/utils/cn';
 
 /**
  * OperationSummaryCard — the headline panel of the Operations Control
@@ -15,7 +16,8 @@ import { RESOURCE_ICONS } from '@/utils/icons';
  * `recipient` and `partner` may be null while an operation is still being
  * matched. An optional `headline` replaces the default "{quantity}
  * {resource}" title (used where a unit reads better, e.g. "35 boxes of
- * Bakery Surplus").
+ * Bakery Surplus"), and an optional `allocation` adds the per-recipient
+ * allocation breakdown with its totals.
  */
 export default function OperationSummaryCard({ operation }) {
   const {
@@ -33,6 +35,7 @@ export default function OperationSummaryCard({ operation }) {
     deadline,
     summary,
     headline,
+    allocation,
   } = operation;
 
   const Icon = RESOURCE_ICONS[resourceType];
@@ -63,6 +66,8 @@ export default function OperationSummaryCard({ operation }) {
           />
         </div>
 
+        {allocation && <AllocationSummary allocation={allocation} />}
+
         <div className="grid grid-cols-1 gap-3 border-t border-line pt-4 sm:grid-cols-2">
           <div className="rounded-control border border-line bg-surface-2 px-3.5 py-3">
             <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-faint">
@@ -89,6 +94,106 @@ export default function OperationSummaryCard({ operation }) {
         </Badge>
       </Card.Footer>
     </Card>
+  );
+}
+
+/**
+ * The operation's allocation: who holds how many portions, plus totals for
+ * what has a recipient and what does not.
+ *
+ * Optional — only operations that carry an allocation breakdown show it. It
+ * is the same summary before and after a change, so when the RS-1024 demo
+ * recipient becomes unavailable and the allocation is recalculated, this
+ * panel shows the updated split with what changed for each recipient (see
+ * services/reallocationDemoService.js).
+ */
+function AllocationSummary({ allocation }) {
+  const { title, badge, rows, total, placed, unplaced, unit, footnote } = allocation;
+
+  return (
+    <section
+      aria-label={title}
+      className="space-y-3 border-t border-line pt-4"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">{title}</h3>
+        {badge && (
+          <Badge tone={badge.tone} size="sm">
+            {badge.label}
+          </Badge>
+        )}
+      </div>
+
+      <ul className="divide-y divide-line overflow-hidden rounded-control border border-line">
+        {rows.map((row) => (
+          <li
+            key={row.id}
+            className={cn(
+              'flex items-center justify-between gap-3 px-3.5 py-2.5',
+              row.tone === 'unavailable' && 'bg-critical/5',
+            )}
+          >
+            <div className="min-w-0">
+              <p
+                className={cn(
+                  'truncate text-xs font-medium',
+                  row.tone === 'unavailable' ? 'text-muted' : 'text-content',
+                )}
+              >
+                {row.name}
+              </p>
+              {row.note && (
+                <p
+                  className={cn(
+                    'mt-0.5 text-[11px]',
+                    row.tone === 'unavailable' ? 'text-critical' : 'text-faint',
+                  )}
+                >
+                  {row.note}
+                </p>
+              )}
+            </div>
+            <span
+              className={cn(
+                'tabular shrink-0 text-xs font-semibold',
+                row.tone === 'unavailable' ? 'text-faint line-through' : 'text-content',
+              )}
+            >
+              {row.quantity} {row.unit ?? unit}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <dl className="grid grid-cols-3 gap-2 text-center">
+        <TotalCell label="Total" value={total} unit={unit} />
+        <TotalCell label="With a recipient" value={placed} unit={unit} />
+        <TotalCell label="No recipient" value={unplaced} unit={unit} urgent={unplaced > 0} />
+      </dl>
+
+      {footnote && <p className="text-[11px] leading-relaxed text-faint">{footnote}</p>}
+    </section>
+  );
+}
+
+function TotalCell({ label, value, unit, urgent = false }) {
+  return (
+    <div
+      className={cn(
+        'min-w-0 rounded-control border px-2 py-2',
+        urgent ? 'border-urgent/30 bg-urgent/5' : 'border-line bg-surface-2',
+      )}
+    >
+      <dt className="text-[10px] font-medium uppercase tracking-wide text-faint">{label}</dt>
+      <dd
+        className={cn(
+          'tabular mt-0.5 text-sm font-semibold',
+          urgent ? 'text-urgent' : 'text-content',
+        )}
+      >
+        {value} <span className="text-[11px] font-medium text-muted">{unit}</span>
+      </dd>
+    </div>
   );
 }
 

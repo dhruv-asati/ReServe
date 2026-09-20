@@ -86,8 +86,8 @@ export default function CoreFeatures() {
       </div>
 
       <div className="animate-fade-up mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map((feature) => (
-          <FeatureCard key={feature.key} {...feature} />
+        {FEATURES.map(({ key, ...feature }) => (
+          <FeatureCard key={key} {...feature} />
         ))}
       </div>
     </section>

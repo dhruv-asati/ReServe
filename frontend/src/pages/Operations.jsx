@@ -8,6 +8,7 @@ import OperationsTable from '@/components/OperationsTable';
 import OperationsFilters from '@/components/OperationsFilters';
 import OperationSummaryCard from '@/components/OperationSummaryCard';
 import OperationStageTracker from '@/components/OperationStageTracker';
+import OperationEventsCard from '@/components/OperationEventsCard';
 import ReallocationDemoCard from '@/components/ReallocationDemoCard';
 import MapPreview from '@/components/MapPreview';
 import MapLegend from '@/components/MapLegend';
@@ -57,15 +58,23 @@ function noMatchDescription({ query }) {
  *      utils/operationFilters.js. Filtering is instant and client-side, and
  *      only changes which rows are listed — the selected operation and its
  *      details below are left as they are.
- *   2. The details view for the selected operation: a status summary, a
- *      7-stage progress tracker, and a map area with an illustrative route.
- *      RS-1024 is selected by default, so the page still opens on the same
- *      details it always showed.
+ *   2. The details view for the selected operation: a status summary with
+ *      its allocation breakdown, a progress tracker over the operation's
+ *      lifecycle, a map area with an illustrative route, and the event feed
+ *      of what has already happened. RS-1024 is selected by default, so the
+ *      page still opens on the same details it always showed.
  *
  * While RS-1024 is selected, the details also show the recipient-unavailable
  * demo (ReallocationDemoCard). Triggering it moves RS-1024 to Reallocating in
- * the list, the summary, the progress tracker and the map — the same scenario
- * state that Smart Matching and the Dashboard read.
+ * the list, the summary and the map, adds a Reallocating stage to the
+ * progress tracker, and records the cause in the event feed. When the mock
+ * reallocation finishes the operation becomes Matched again to the updated
+ * recipients: the tracker's current stage becomes "Matched (updated
+ * allocation)", the allocation summary shows the updated split, the event
+ * feed explains that the allocation changed because the original recipient
+ * became unavailable, and the demo card compares the previous and updated
+ * allocations side by side. It is the same scenario state that Smart Matching
+ * and the Dashboard read.
  *
  * The selection lives in the URL (`?operation=RS-1025`), so it survives a
  * refresh and can be linked to. An unknown id falls back to RS-1024.
@@ -318,7 +327,7 @@ export default function Operations() {
             <Card.Header
               icon={Radio}
               title="Operation Progress"
-              subtitle="Created → AI Analyzed → Matched → Partner Assigned → Pickup Started → In Transit → Delivered."
+              subtitle="Every stage of this operation, from Created through to Delivered — including any added while it is re-planned."
             />
             <Card.Body>
               {detail === null ? (
@@ -363,6 +372,17 @@ export default function Operations() {
             </Card.Body>
           </Card>
         </div>
+
+        {/* ---------- Operation events ---------- */}
+        {detail === null ? (
+          <Card>
+            <Card.Body>
+              <LoadingState label="Loading events…" />
+            </Card.Body>
+          </Card>
+        ) : (
+          <OperationEventsCard events={detail.events ?? []} />
+        )}
       </section>
     </div>
   );

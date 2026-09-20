@@ -108,7 +108,11 @@ function validateAllocationPlan(resource, allocations) {
  * on the Operations page, this page reflects it — NGO A cannot be selected,
  * its 50-portion share drops out of the proposed allocation, and the plan
  * validation below reports the unallocated remainder (so Confirm stays
- * disabled). Nothing is sent anywhere; see services/reallocationDemoService.js.
+ * disabled). Once the mock reallocation there has finished, the updated
+ * allocation (Shelter B 20, NGO D 40, Night Rescue Hub 20 with the demo data)
+ * is written onto the candidates: the Proposed Allocation cards show it, the
+ * total is 80 again, and validation passes. Nothing is sent anywhere; see
+ * services/reallocationDemoService.js.
  *
  * Plan actions (in the Allocation Summary card): "Recalculate Match" replays
  * the simulated stages and restores the demo allocation; "Confirm Rescue
@@ -310,7 +314,7 @@ export default function Matching() {
                   <p className="text-sm font-medium text-success">
                     {lastRun === 'recalculate'
                       ? reallocation.unavailable
-                        ? `Demo recalculation completed — ${reallocation.recipientName} is still unavailable, so ${reallocation.unplaced} ${reallocation.unit} remain unallocated.`
+                        ? `Demo recalculation completed — ${reallocation.matchingNote}`
                         : 'Demo recalculation completed — demo allocation results restored.'
                       : 'Matching analysis completed.'}
                   </p>
@@ -423,7 +427,9 @@ export default function Matching() {
                 <p className="mb-4 text-xs text-faint">
                   {confirmed
                     ? 'Confirmed as a demo plan only — hardcoded for this walkthrough. No real rescue was created and no organization was contacted.'
-                    : 'A proposed demo split only — hardcoded for this walkthrough, not the output of an optimization routine, and not yet confirmed or dispatched. No confidence or optimization scores are implied.'}
+                    : reallocation.updated
+                      ? `Updated demo split after ${reallocation.recipientName} became unavailable for ${reallocation.operationId} — recalculated by a small scripted rule over the hardcoded demo recipients (details on the Operations page). Not a live production allocation, and not yet confirmed or dispatched. No confidence or optimization scores are implied.`
+                      : 'A proposed demo split only — hardcoded for this walkthrough, not the output of an optimization routine, and not yet confirmed or dispatched. No confidence or optimization scores are implied.'}
                 </p>
                 <div className="grid grid-cols-1 items-start gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {proposedAllocations.map((allocation) => (

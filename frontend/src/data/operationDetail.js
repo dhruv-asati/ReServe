@@ -92,6 +92,68 @@ export const DEMO_OPERATION_STAGES = [
 ];
 
 /**
+ * Event feed for the demo operation — what has already happened, newest
+ * first. Where DEMO_OPERATION_STAGES always lists every stage of the
+ * lifecycle (including the ones still to come), this is a chronological
+ * record of events only, so a change part-way through an operation can be
+ * recorded here without rewriting the lifecycle.
+ *
+ * The RS-1024 recipient-unavailable demo prepends its own events to this
+ * list (see services/reallocationDemoService.js); nothing here is a live
+ * feed and every `time` is a hardcoded, illustrative label.
+ */
+export const DEMO_OPERATION_EVENTS = [
+  {
+    id: 'rs-1024-in-transit',
+    stage: 'in_transit',
+    status: STATUS.IN_TRANSIT,
+    title: 'In transit',
+    description: 'Rescue Partner #12 left Hotel XYZ en route to NGO A.',
+    time: '22 min ago (illustrative)',
+  },
+  {
+    id: 'rs-1024-pickup',
+    stage: 'pickup',
+    status: STATUS.PICKUP_IN_PROGRESS,
+    title: 'Pickup started',
+    description: 'Rescue Partner #12 collected 80 vegetarian meals from Hotel XYZ.',
+    time: '30 min ago (illustrative)',
+  },
+  {
+    id: 'rs-1024-assigned',
+    stage: 'assigned',
+    status: STATUS.PARTNER_ASSIGNED,
+    title: 'Rescue partner assigned',
+    description: 'Rescue Partner #12 assigned for pickup — illustrative assignment only.',
+    time: '1 hr 15 min ago (illustrative)',
+  },
+  {
+    id: 'rs-1024-matched',
+    stage: 'matched',
+    status: STATUS.MATCHED,
+    title: 'Matched',
+    description: 'Vegetarian meals allocated across NGO A, Shelter B and Night Rescue Hub.',
+    time: '1 hr 40 min ago (illustrative)',
+  },
+  {
+    id: 'rs-1024-analyzed',
+    stage: 'analyzed',
+    status: STATUS.ANALYZING,
+    title: 'AI analyzed',
+    description: 'Batch scored for allocation priority — demo analysis, not a live AI call.',
+    time: '1 hr 52 min ago (illustrative)',
+  },
+  {
+    id: 'rs-1024-created',
+    stage: 'created',
+    status: STATUS.CREATED,
+    title: 'Rescue created',
+    description: 'Hotel XYZ logged 80 vegetarian meals as surplus.',
+    time: '2 hr 10 min ago (illustrative)',
+  },
+];
+
+/**
  * Mock map points for the demo operation, centred on Indiranagar, Bengaluru.
  * Coordinates are fictional but geographically coherent — a static
  * illustrative snapshot for this demo, not a live GPS position or route.

@@ -12,6 +12,8 @@ import {
   Warehouse,
   Navigation,
   PackageCheck,
+  RefreshCw,
+  Shuffle,
 } from 'lucide-react';
 
 /**
@@ -30,6 +32,12 @@ export const RESOURCE_ICONS = {
  * assigned → pickup → completed. `in_transit` and `delivered` extend this
  * set for the Operations Control Center's 7-stage tracker (OperationStageTracker),
  * without changing the meaning of the existing keys used elsewhere.
+ *
+ * `reallocating` and `rematched` are the two stages the RS-1024
+ * recipient-unavailable demo inserts into that tracker (and into the
+ * operation's event feed) once a recipient drops out: the operation is being
+ * re-planned, then matched again to the updated recipients. They extend the
+ * set the same way — no existing key changes meaning.
  */
 export const ACTIVITY_STAGE_ICONS = {
   created: PackagePlus,
@@ -40,6 +48,8 @@ export const ACTIVITY_STAGE_ICONS = {
   in_transit: Navigation,
   completed: CheckCircle2,
   delivered: PackageCheck,
+  reallocating: RefreshCw,
+  rematched: Shuffle,
 };
 
 /**

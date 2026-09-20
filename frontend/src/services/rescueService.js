@@ -1,4 +1,4 @@
-import { mockRequest } from './api';
+import { api, mockRequest, USE_MOCKS } from './api';
 
 const STORAGE_KEY = 'reserve.mockResources';
 
@@ -22,21 +22,30 @@ function writeStore(records) {
 }
 
 /**
- * Mock submission for the create-rescue form. No backend and no AI call —
- * resolves with a fake rescue id after a simulated network delay (same
- * `mockRequest` pattern as every other service), then saves the record to
+ * Submission for the create-rescue form.
+ *
+ * Mock by default (`USE_MOCKS`, see services/api.js): resolves with a fake
+ * rescue id after a simulated network delay (same `mockRequest` pattern as
+ * every other service), no backend and no AI call, then saves the record to
  * localStorage so it's available to the next (mock) stage. `payload` must
  * already be plain, serializable data — CreateRescue.jsx strips uploaded
  * File objects down to {name, size, type} metadata before calling this.
+ *
+ * The real branch posts the same payload to the backend and returns
+ * whatever record it responds with; it does not touch localStorage, since
+ * that cache exists only to make the later mock stages work offline.
  */
 export function createRescue(payload) {
-  const id = `RES-${Math.floor(1000 + Math.random() * 9000)}`;
-  const record = { id, createdAt: new Date().toISOString(), status: 'draft', ...payload };
+  if (USE_MOCKS) {
+    const id = `RES-${Math.floor(1000 + Math.random() * 9000)}`;
+    const record = { id, createdAt: new Date().toISOString(), status: 'draft', ...payload };
 
-  return mockRequest(record, { delay: 900 }).then((result) => {
-    writeStore([result, ...readStore()]);
-    return result;
-  });
+    return mockRequest(record, { delay: 900 }).then((result) => {
+      writeStore([result, ...readStore()]);
+      return result;
+    });
+  }
+  return api.post('/rescues', payload).then((response) => response.data);
 }
 
 /** Read back one locally-saved mock resource by id, for later mock stages. */

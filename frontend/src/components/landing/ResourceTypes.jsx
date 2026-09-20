@@ -48,8 +48,8 @@ export default function ResourceTypes() {
       </div>
 
       <div className="animate-fade-up mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2">
-        {CATEGORIES.map((cat) => (
-          <ResourceCard key={cat.key} {...cat} />
+        {CATEGORIES.map(({ key, ...cat }) => (
+          <ResourceCard key={key} {...cat} />
         ))}
       </div>
 

@@ -40,9 +40,10 @@ export default function OperationCard({ operation }) {
 
 function Row({ label, value }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-xs">
+    <div className="flex items-start justify-between gap-3 text-xs">
       <span className="shrink-0 text-faint">{label}</span>
-      <span className="truncate font-medium text-content">{value}</span>
+      {/* Wraps rather than truncates: a re-allocated operation can list several recipients. */}
+      <span className="min-w-0 break-words text-right font-medium text-content">{value}</span>
     </div>
   );
 }

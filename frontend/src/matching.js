@@ -16,6 +16,13 @@ import { RESOURCE_TYPE, URGENCY } from '@/utils/theme';
  * `allocatedQuantity` marks the demo allocation: candidates with a number get
  * a proposed share; `null` means not allocated. The proposed shares sum to
  * the resource quantity so the confirm step passes.
+ *
+ * The same candidate fields (capacity, availability, distance, pickup ETA,
+ * pickup feasibility, eligibility) feed the RS-1024 "recipient unavailable"
+ * demo, which re-checks them to produce an updated allocation — see
+ * utils/reallocationPlan.js and services/reallocationDemoService.js. NGO D is
+ * a feasible candidate that the original split simply does not use; it only
+ * receives portions once NGO A drops out.
  */
 
 /**
@@ -66,7 +73,7 @@ export const MATCH_CANDIDATES = [
     needLabel: 'Meals needed tonight',
     unit: 'portions',
     distanceKm: 8.6,
-    capacity: 20,
+    capacity: 25,
     capacityUnit: 'portions',
     availability: 'yes',
     eligibility: 'yes',
@@ -76,6 +83,24 @@ export const MATCH_CANDIDATES = [
     selectable: true,
     unselectableReason: null,
     allocatedQuantity: 20,
+  },
+  {
+    id: 'cand-ngo-d',
+    name: 'NGO D',
+    need: 40,
+    needLabel: 'Meals needed tonight',
+    unit: 'portions',
+    distanceKm: 13.4,
+    capacity: 40,
+    capacityUnit: 'portions',
+    availability: 'yes',
+    eligibility: 'yes',
+    eligibilityBasis: 'Registered NGO that accepts vegetarian meals',
+    pickupFeasibility: 'yes',
+    pickupEtaMinutes: 80,
+    selectable: true,
+    unselectableReason: null,
+    allocatedQuantity: null,
   },
   {
     id: 'cand-night-rescue-hub',
@@ -94,26 +119,6 @@ export const MATCH_CANDIDATES = [
     selectable: true,
     unselectableReason: null,
     allocatedQuantity: 10,
-  },
-  {
-    id: 'cand-ngo-d',
-    name: 'NGO D',
-    need: 40,
-    needLabel: 'Meals needed tonight',
-    unit: 'portions',
-    distanceKm: 6.8,
-    capacity: 40,
-    capacityUnit: 'portions',
-    availability: 'yes',
-    eligibility: 'yes',
-    eligibilityBasis: 'Registered NGO with a same-night vegetarian meal service',
-    pickupFeasibility: 'yes',
-    pickupEtaMinutes: 45,
-    selectable: true,
-    unselectableReason: null,
-    // Not part of the proposed allocation: it is the spare eligible recipient
-    // the RS-1024 reallocation demo falls back on when NGO A drops out.
-    allocatedQuantity: null,
   },
   {
     id: 'cand-harborview',

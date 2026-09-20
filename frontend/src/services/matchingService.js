@@ -11,6 +11,15 @@ const RESCUE_WINDOW_MINUTES = {
 };
 
 /**
+ * The rescue window for an urgency tier, in minutes. Synchronous and shared,
+ * so the RS-1024 reallocation demo checks pickup ETAs against exactly the
+ * window Smart Matching shows — the two can never use different numbers.
+ */
+export function getRescueWindowMinutes(urgency) {
+  return RESCUE_WINDOW_MINUTES[urgency] ?? RESCUE_WINDOW_MINUTES[URGENCY.MEDIUM];
+}
+
+/**
  * Ordered checklist the mock matching process "runs" through, top to
  * bottom. This is a purely cosmetic, frontend-only simulation — no
  * matching engine, AI model or backend call is involved at any step.
@@ -36,8 +45,7 @@ export const MATCHING_STEP_DURATION_MS = 650;
 export function getMatchingResource() {
   const shaped = {
     ...MATCH_RESOURCE,
-    rescueWindowMinutes:
-      RESCUE_WINDOW_MINUTES[MATCH_RESOURCE.urgency] ?? RESCUE_WINDOW_MINUTES[URGENCY.MEDIUM],
+    rescueWindowMinutes: getRescueWindowMinutes(MATCH_RESOURCE.urgency),
   };
   return mockRequest(shaped, { delay: 450 });
 }

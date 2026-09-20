@@ -1,7 +1,8 @@
-import { mockRequest } from './api';
+import { api, mockRequest, USE_MOCKS } from './api';
 import {
   getDemoOperation,
   getDemoOperationStages,
+  getDemoOperationEvents,
   getDemoOperationLocations,
   getDemoOperationRoute,
 } from './operationDetailService';
@@ -18,39 +19,53 @@ import { STATUS, NETWORK_ROLE } from '@/utils/theme';
  * later only changes the bodies of these functions.
  */
 
-/** Fetch every rescue operation for the Operations list. */
+/**
+ * Fetch every rescue operation for the Operations list.
+ *
+ * Mock by default (`USE_MOCKS`, see services/api.js); the real request stays
+ * dormant until the backend is live and `VITE_USE_MOCKS=false` is set.
+ */
 export function getRescueOperations() {
-  return mockRequest(RESCUE_OPERATIONS, { delay: 450 });
+  if (USE_MOCKS) return mockRequest(RESCUE_OPERATIONS, { delay: 450 });
+  return api.get('/operations').then((response) => response.data);
 }
 
 /**
  * Fetch the details view data for one operation:
- * `{ operation, stages, locations, route, zoom }`.
+ * `{ operation, stages, events, locations, route, zoom }`.
  *
- * The demo operation (RS-1024) resolves through the four original
- * operationDetailService calls, so its details are exactly what this page
- * showed before the list existed. Every other operation gets the same
- * shapes derived from its list entry — see the helpers below.
+ * `stages` is the full lifecycle (completed, current and upcoming);
+ * `events` is the chronological record of what has already happened, newest
+ * first, which is where a mid-operation change such as a reallocation is
+ * recorded.
+ *
+ * The demo operation (RS-1024) resolves through the operationDetailService
+ * calls, so its details are exactly what this page showed before the list
+ * existed. Every other operation gets the same shapes derived from its list
+ * entry — see the helpers below.
  */
 export async function getRescueOperationDetail(id) {
   if (id === DEMO_OPERATION.id) {
-    const [operation, stages, locations, route] = await Promise.all([
+    const [operation, stages, events, locations, route] = await Promise.all([
       getDemoOperation(),
       getDemoOperationStages(),
+      getDemoOperationEvents(),
       getDemoOperationLocations(),
       getDemoOperationRoute(),
     ]);
-    return { operation, stages, locations, route, zoom: 14 };
+    return { operation, stages, events, locations, route, zoom: 14 };
   }
 
   const entry = RESCUE_OPERATIONS.find((operation) => operation.id === id);
   if (!entry) return null;
 
   const { locations, route, zoom } = buildMap(entry);
+  const stages = buildStages(entry);
   return mockRequest(
     {
       operation: buildOperation(entry),
-      stages: buildStages(entry),
+      stages,
+      events: buildEvents(entry, stages),
       locations,
       route,
       zoom,
@@ -270,6 +285,38 @@ function buildStages(entry) {
   }
 
   return stages;
+}
+
+/* ---------- Events ---------- */
+
+/** The status each lifecycle stage represents, for the event feed's badge. */
+const STAGE_STATUS = {
+  created: STATUS.CREATED,
+  analyzed: STATUS.ANALYZING,
+  matched: STATUS.MATCHED,
+  assigned: STATUS.PARTNER_ASSIGNED,
+  pickup: STATUS.PICKUP_IN_PROGRESS,
+  in_transit: STATUS.IN_TRANSIT,
+  delivered: STATUS.DELIVERED,
+};
+
+/**
+ * The event feed for one operation: the stages it has actually reached,
+ * newest first. Derived from the same stages the tracker shows, so the two
+ * can never disagree — the feed simply drops what hasn't happened yet.
+ */
+function buildEvents(entry, stages) {
+  return stages
+    .filter((stage) => stage.state !== 'upcoming')
+    .map((stage) => ({
+      id: `${entry.id}-${stage.key}`,
+      stage: stage.state === 'ended' ? 'completed' : stage.key,
+      status: stage.state === 'ended' ? entry.status : (STAGE_STATUS[stage.key] ?? entry.status),
+      title: stage.label,
+      description: stage.description,
+      time: stage.timestamp,
+    }))
+    .reverse();
 }
 
 /* ---------- Map ---------- */

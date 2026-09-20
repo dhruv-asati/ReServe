@@ -12,6 +12,8 @@ import ResourceDetails from '@/pages/ResourceDetails';
 import RescueRequests from '@/pages/RescueRequests';
 import Matching from '@/pages/Matching';
 import Operations from '@/pages/Operations';
+import Network from '@/pages/Network';
+import Analytics from '@/pages/Analytics';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 import { PATHS } from '@/routes/paths';
@@ -52,24 +54,8 @@ export default function AppRoutes() {
           />
           <Route path="matching" element={<Matching />} />
           <Route path="operations" element={<Operations />} />
-          <Route
-            path="network"
-            element={
-              <Placeholder
-                title="Rescue Network"
-                description="Map of providers, recipients, partners and hubs."
-              />
-            }
-          />
-          <Route
-            path="analytics"
-            element={
-              <Placeholder
-                title="Analytics"
-                description="Impact metrics and predictive surplus windows."
-              />
-            }
-          />
+          <Route path="network" element={<Network />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route
             path="profile"
             element={

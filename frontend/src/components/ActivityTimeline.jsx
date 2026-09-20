@@ -1,13 +1,22 @@
 import { ACTIVITY_STAGE_ICONS } from '@/utils/icons';
 import { StatusBadge } from '@/components/ui';
+import { cn } from '@/utils/cn';
 
 /**
  * ActivityTimeline — compact vertical timeline of rescue lifecycle events:
  * created → analyzed → matched → assigned → pickup → completed. Generic
- * over `items`, so it can back any activity feed later, not just the
- * dashboard's recent-activity section.
+ * over `items`, so it can back any activity feed, not just the dashboard's
+ * recent-activity section.
+ *
+ * Each item is `{ id, stage, status, title, description, time }` and may
+ * carry an optional `meta` line shown under the description (used where an
+ * event needs a detail line, e.g. the allocation before and after a change).
+ *
+ * `wrapText` lets a wider feed — the Operations details view — show the full
+ * description over several lines. The dashboard's narrow column keeps the
+ * default single truncated line.
  */
-export default function ActivityTimeline({ items = [] }) {
+export default function ActivityTimeline({ items = [], wrapText = false }) {
   return (
     <ol className="space-y-0">
       {items.map((item, index) => {
@@ -32,7 +41,24 @@ export default function ActivityTimeline({ items = [] }) {
                 </div>
                 <span className="shrink-0 text-[11px] text-faint">{item.time}</span>
               </div>
-              <p className="mt-0.5 truncate text-xs text-muted">{item.description}</p>
+              <p
+                className={cn(
+                  'mt-0.5 text-xs text-muted',
+                  wrapText ? 'break-words leading-relaxed' : 'truncate',
+                )}
+              >
+                {item.description}
+              </p>
+              {item.meta && (
+                <p
+                  className={cn(
+                    'mt-1 text-[11px] text-faint',
+                    wrapText ? 'break-words leading-relaxed' : 'truncate',
+                  )}
+                >
+                  {item.meta}
+                </p>
+              )}
             </div>
           </li>
         );

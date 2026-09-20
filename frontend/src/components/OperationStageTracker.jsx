@@ -19,6 +19,11 @@ import { cn } from '@/utils/cn';
  * that was cancelled or expired. It renders in the critical colour with an X
  * icon, and such an operation lists no upcoming stages after it.
  *
+ * The list is whatever `stages` contains, so an operation that is re-planned
+ * part-way through can carry extra stages: the RS-1024 recipient-unavailable
+ * demo inserts Reallocating, then Matched (updated allocation), before
+ * Delivered. Exactly one stage is ever `current`, whichever list is passed.
+ *
  * Frontend only: `stages` is demo data (see data/operationDetail.js).
  * Every timestamp shown is a hardcoded, illustrative value — never a live
  * or auto-refreshing clock — and upcoming stages intentionally carry no
