@@ -14,6 +14,7 @@ import Matching from '@/pages/Matching';
 import Operations from '@/pages/Operations';
 import Network from '@/pages/Network';
 import Analytics from '@/pages/Analytics';
+import Profile from '@/pages/Profile';
 import Placeholder from '@/pages/Placeholder';
 import NotFound from '@/pages/NotFound';
 import { PATHS } from '@/routes/paths';
@@ -56,15 +57,7 @@ export default function AppRoutes() {
           <Route path="operations" element={<Operations />} />
           <Route path="network" element={<Network />} />
           <Route path="analytics" element={<Analytics />} />
-          <Route
-            path="profile"
-            element={
-              <Placeholder
-                title="Profile"
-                description="Organization details and capabilities."
-              />
-            }
-          />
+          <Route path="profile" element={<Profile />} />
         </Route>
       </Route>
 
