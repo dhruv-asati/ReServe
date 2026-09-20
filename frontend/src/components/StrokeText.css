@@ -1,0 +1,41 @@
+/* ============================================================
+   StrokeText — SVG wordmark that draws its outline, then fills.
+
+   The component measures the text (getBBox) and sets the SVG viewBox
+   to match, so the SVG is sized by height: `--stroke-text-height`,
+   which the component sets to fontSize * 1.3 px. That keeps 1 SVG
+   unit ≈ 1 CSS px, so `strokeWidth={1}` renders as a 1px outline.
+   ============================================================ */
+
+.stroke-text {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.stroke-text__svg {
+  display: block;
+  height: var(--stroke-text-height, 1.3em);
+  width: auto;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.stroke-text__stroke,
+.stroke-text__fill {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  text-rendering: geometricPrecision;
+}
+
+.stroke-text--hover {
+  cursor: pointer;
+}
+
+/* Opt-in: add className="stroke-text--responsive" to shrink to 82% on phones,
+   so a wordmark next to other header items never forces sideways scrolling. */
+@media (max-width: 639px) {
+  .stroke-text--responsive .stroke-text__svg {
+    height: calc(var(--stroke-text-height) * 0.82);
+  }
+}

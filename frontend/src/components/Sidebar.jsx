@@ -69,36 +69,21 @@ function Brand({ collapsed }) {
   );
 }
 
-/** Mark glyph: a node routing surplus onward. Drawn, not an image asset. */
+/**
+ * Brand mark: the square favicon served from /public. Used by the menu header,
+ * the desktop sidebar and the landing footer, so swap public/favicon.svg to
+ * rebrand all three at once.
+ */
 export function Logo({ size = 28 }) {
   return (
-    <span
-      className="grid shrink-0 place-items-center rounded-control bg-brand-600/15 ring-1 ring-brand-500/30"
-      style={{ width: size, height: size }}
-    >
-      <svg
-        width={size * 0.6}
-        height={size * 0.6}
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M4 6h9a5 5 0 0 1 0 10H8"
-          stroke="var(--color-brand-400)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-        <path
-          d="m11 13-3 3 3 3"
-          stroke="var(--color-brand-400)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="19" cy="6" r="2" fill="var(--color-brand-400)" />
-      </svg>
-    </span>
+    <img
+      src={`${import.meta.env.BASE_URL}favicon.svg`}
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      className="shrink-0 object-contain"
+    />
   );
 }
 

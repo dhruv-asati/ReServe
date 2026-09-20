@@ -184,7 +184,7 @@ export default function Dashboard() {
               variant="ghost"
               size="sm"
               iconRight={ArrowUpRight}
-              className="hidden sm:inline-flex"
+              className="max-sm:hidden"
             >
               Open full map
             </Button>

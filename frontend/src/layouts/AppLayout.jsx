@@ -38,7 +38,7 @@ export default function AppLayout() {
   }));
 
   return (
-    <div className="flex min-h-screen bg-transparent">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-clip bg-transparent">
       <StaggeredMenu
         isFixed
         position="left"
