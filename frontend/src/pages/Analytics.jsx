@@ -26,7 +26,7 @@ import {
 import StatCard from '@/components/StatCard';
 import ChartCard from '@/components/ChartCard';
 import PredictiveSurplusCard from '@/components/PredictiveSurplusCard';
-import { CHART_AXIS, RESOURCE_META } from '@/utils/theme';
+import { CHART_ACTIVE_DOT, CHART_AXIS, CHART_CURSOR, RESOURCE_META } from '@/utils/theme';
 import {
   getAnalyticsSummary,
   getResourcesRescuedOverTime,
@@ -75,6 +75,8 @@ const tooltipStyle = {
   },
   labelStyle: { color: '#e6edf5' },
   itemStyle: { color: '#94a3b8' },
+  // Hover highlight: dark violet tint (bar charts). Line / area charts override with CHART_CURSOR.line.
+  cursor: CHART_CURSOR.bar,
 };
 
 /**
@@ -220,13 +222,14 @@ export default function Analytics() {
               axisLine={false}
               width={40}
             />
-            <Tooltip {...tooltipStyle} formatter={(value) => [`${value} kg`, 'Rescued']} />
+            <Tooltip {...tooltipStyle} cursor={CHART_CURSOR.line} formatter={(value) => [`${value} kg`, 'Rescued']} />
             <Area
               type="monotone"
               dataKey="kg"
               stroke={BRAND_COLOR}
               strokeWidth={2}
               fill="url(#rescuedFill)"
+              activeDot={CHART_ACTIVE_DOT}
             />
           </AreaChart>
         </ChartCard>
@@ -242,6 +245,7 @@ export default function Analytics() {
             <Legend wrapperStyle={{ fontSize: 12, color: CHART_AXIS.stroke }} />
             <Pie
               data={foodVsMedical ?? []}
+              stroke="none"
               dataKey="value"
               nameKey="name"
               innerRadius="55%"
@@ -319,14 +323,14 @@ export default function Analytics() {
               width={32}
               unit=" min"
             />
-            <Tooltip {...tooltipStyle} formatter={(value) => [`${value} min`, 'Avg. time']} />
+            <Tooltip {...tooltipStyle} cursor={CHART_CURSOR.line} formatter={(value) => [`${value} min`, 'Avg. time']} />
             <Line
               type="monotone"
               dataKey="minutes"
               stroke={ACTIVE_COLOR}
               strokeWidth={2}
               dot={{ r: 3, fill: ACTIVE_COLOR }}
-              activeDot={{ r: 5 }}
+              activeDot={CHART_ACTIVE_DOT}
             />
           </LineChart>
         </ChartCard>
@@ -392,6 +396,7 @@ export default function Analytics() {
               <Legend wrapperStyle={{ fontSize: 12, color: CHART_AXIS.stroke }} />
               <Pie
                 data={deadlinePerformance ?? []}
+                stroke="none"
                 dataKey="value"
                 nameKey="name"
                 innerRadius="55%"

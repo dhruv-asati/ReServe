@@ -180,3 +180,22 @@ export const CHART_AXIS = {
   grid: '#232d3b',
   fontSize: 12,
 };
+
+/**
+ * Recharts hover styling. Recharts' defaults are a light grey band behind a
+ * hovered bar and a white ring on the hovered point, which look harsh on dark
+ * panels — these swap them for a dark violet tint that matches the app accent.
+ *   bar  — the band behind a hovered bar group
+ *   line — the vertical guide on line / area charts
+ */
+export const CHART_CURSOR = {
+  bar: { fill: 'rgba(95, 77, 214, 0.14)', stroke: 'none' },
+  line: { stroke: '#5f4dd6', strokeWidth: 1 },
+};
+
+/** The hovered point on line / area charts: series colour with a soft violet halo. */
+export const CHART_ACTIVE_DOT = {
+  r: 5,
+  stroke: 'rgba(155, 140, 245, 0.35)',
+  strokeWidth: 6,
+};
