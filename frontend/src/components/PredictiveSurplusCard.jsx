@@ -3,7 +3,7 @@ import { Sparkles, Bell, CheckCircle2, Info } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 import { Card, Button, Badge, LoadingState } from '@/components/ui';
-import { CHART_AXIS } from '@/utils/theme';
+import { CHART_AXIS, CHART_CURSOR } from '@/utils/theme';
 import { notifyNearbyRescuePartners } from '@/services/analyticsService';
 
 const BRAND_COLOR = '#14b98f';
@@ -17,6 +17,7 @@ const tooltipStyle = {
   },
   labelStyle: { color: '#e6edf5' },
   itemStyle: { color: '#94a3b8' },
+  cursor: CHART_CURSOR.bar,
 };
 
 /**
