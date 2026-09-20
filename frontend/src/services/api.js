@@ -108,14 +108,14 @@ export function setAuthFailureHandler(handler) {
 // ---------------------------------------------------------------------------
 
 /** Default timeout. AI-backed calls (resource analysis) should pass AI_REQUEST_TIMEOUT_MS. */
-export const DEFAULT_TIMEOUT_MS = 15000;
+export const DEFAULT_TIMEOUT_MS = 60000;
 
 /**
  * The backend gives Gemini 20s (GEMINI_TIMEOUT_SECONDS) before answering 504,
  * which is longer than DEFAULT_TIMEOUT_MS — pass `{ timeout: AI_REQUEST_TIMEOUT_MS }`
  * on `POST /resources/{id}/analyze` so the client doesn't give up first.
  */
-export const AI_REQUEST_TIMEOUT_MS = 30000;
+export const AI_REQUEST_TIMEOUT_MS = 60000;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
