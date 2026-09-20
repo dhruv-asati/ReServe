@@ -48,7 +48,7 @@ services:
 
   # --------------------------------------------------------------- Frontend
   - type: web
-    name: reserve-web-YOURNAME
+    name: reserve-web-tensors
     runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
@@ -57,7 +57,7 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: VITE_API_BASE_URL
-        value: https://reserve-api-YOURNAME.onrender.com/api
+        value: https://reserve-api-tensors.onrender.com/api
       - key: VITE_USE_MOCKS
         value: "false"
     routes:
