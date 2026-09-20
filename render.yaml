@@ -1,0 +1,67 @@
+# Save as: render.yaml   (at the ROOT of your repo, next to backend/ and frontend/)
+#
+# Before using it, replace YOURNAME (3 places) with something unique, e.g. your
+# username. Service names become the URLs:
+#     API : https://reserve-api-YOURNAME.onrender.com
+#     Web : https://reserve-web-YOURNAME.onrender.com
+# If Render says a name is taken, pick another and update the URLs below to match.
+
+services:
+  # ---------------------------------------------------------------- Backend
+  - type: web
+    name: reserve-api-tensors
+    runtime: python
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      # Render generates a strong random secret for you
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SUPABASE_STORAGE_BUCKET
+        value: resource-images
+      - key: CORS_ORIGINS
+        value: https://reserve-web-tensors.onrender.com
+      - key: PUBLIC_BASE_URL
+        value: https://reserve-api-tensors.onrender.com
+      # sync: false  ->  Render asks you to type these in when you apply the file,
+      # so no secrets ever live in Git
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        sync: false
+
+  # --------------------------------------------------------------- Frontend
+  - type: web
+    name: reserve-web-YOURNAME
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_BASE_URL
+        value: https://reserve-api-YOURNAME.onrender.com/api
+      - key: VITE_USE_MOCKS
+        value: "false"
+    routes:
+      # React Router: unknown paths serve the app instead of a 404
+      - type: rewrite
+        source: /*
+        destination: /index.html
