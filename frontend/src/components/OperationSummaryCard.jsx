@@ -18,8 +18,12 @@ import { cn } from '@/utils/cn';
  * {resource}" title (used where a unit reads better, e.g. "35 boxes of
  * Bakery Surplus"), and an optional `allocation` adds the per-recipient
  * allocation breakdown with its totals.
+ *
+ * `live` is true when `operation` comes from the backend rather than mock
+ * data: the demo/illustrative wording is dropped and the ETA is described as
+ * an estimated travel time.
  */
-export default function OperationSummaryCard({ operation }) {
+export default function OperationSummaryCard({ operation, live = false }) {
   const {
     id,
     resource,
@@ -62,7 +66,7 @@ export default function OperationSummaryCard({ operation }) {
           <DetailRow
             icon={Truck}
             label="Rescue Partner"
-            value={partner ? `${partner} (demo)` : 'Not assigned yet'}
+            value={partner ? (live ? partner : `${partner} (demo)`) : 'Not assigned yet'}
           />
         </div>
 
@@ -72,7 +76,7 @@ export default function OperationSummaryCard({ operation }) {
           <div className="rounded-control border border-line bg-surface-2 px-3.5 py-3">
             <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-faint">
               <Clock size={12} strokeWidth={1.75} />
-              ETA (illustrative)
+              {live ? 'Estimated travel time' : 'ETA (illustrative)'}
             </p>
             <p className="mt-1 text-lg font-semibold tracking-tight text-content">{eta}</p>
             {etaNote && <p className="mt-1 text-[11px] text-faint">{etaNote}</p>}
@@ -84,14 +88,24 @@ export default function OperationSummaryCard({ operation }) {
               Rescue deadline
             </p>
             <p className="mt-1 text-lg font-semibold tracking-tight text-content">{deadline}</p>
-            <p className="mt-1 text-[11px] text-faint">Demo deadline for this illustrative rescue.</p>
+            <p className="mt-1 text-[11px] text-faint">
+              {live
+                ? "The resource's expiry or pickup deadline."
+                : 'Demo deadline for this illustrative rescue.'}
+            </p>
           </div>
         </div>
       </Card.Body>
       <Card.Footer>
-        <Badge tone="neutral" size="sm">
-          Demo information — not a live operation
-        </Badge>
+        {live ? (
+          <Badge tone="active" dot size="sm">
+            Live operation
+          </Badge>
+        ) : (
+          <Badge tone="neutral" size="sm">
+            Demo information — not a live operation
+          </Badge>
+        )}
       </Card.Footer>
     </Card>
   );

@@ -37,20 +37,20 @@ export const ANALYTICS_SUMMARY = {
 
 /** Resources rescued over time (kg), daily for the last two weeks. */
 export const RESOURCES_RESCUED_OVER_TIME = [
-  { label: 'Sep 6', kg: 62 },
-  { label: 'Sep 7', kg: 78 },
-  { label: 'Sep 8', kg: 55 },
-  { label: 'Sep 9', kg: 91 },
-  { label: 'Sep 10', kg: 84 },
-  { label: 'Sep 11', kg: 103 },
-  { label: 'Sep 12', kg: 97 },
-  { label: 'Sep 13', kg: 112 },
-  { label: 'Sep 14', kg: 88 },
-  { label: 'Sep 15', kg: 121 },
-  { label: 'Sep 16', kg: 109 },
-  { label: 'Sep 17', kg: 134 },
-  { label: 'Sep 18', kg: 118 },
-  { label: 'Sep 19', kg: 142 },
+  { label: 'Sep 6', quantity: 62 },
+  { label: 'Sep 7', quantity: 78 },
+  { label: 'Sep 8', quantity: 55 },
+  { label: 'Sep 9', quantity: 91 },
+  { label: 'Sep 10', quantity: 84 },
+  { label: 'Sep 11', quantity: 103 },
+  { label: 'Sep 12', quantity: 97 },
+  { label: 'Sep 13', quantity: 112 },
+  { label: 'Sep 14', quantity: 88 },
+  { label: 'Sep 15', quantity: 121 },
+  { label: 'Sep 16', quantity: 109 },
+  { label: 'Sep 17', quantity: 134 },
+  { label: 'Sep 18', quantity: 118 },
+  { label: 'Sep 19', quantity: 142 },
 ];
 
 /** Food vs. medical split of rescued resources (kg). */

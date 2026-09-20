@@ -3,6 +3,7 @@ Resource endpoints:
 
     POST   /api/resources
     GET    /api/resources
+    GET    /api/resources/at-risk        (declared before /{resource_id} so it isn't captured by it)
     GET    /api/resources/{resource_id}
     PUT    /api/resources/{resource_id}
     DELETE /api/resources/{resource_id}
@@ -26,7 +27,8 @@ from app.models.enums import ResourceStatus, ResourceType, UserRole
 from app.models.user import User
 from app.schemas.common import SuccessResponse
 from app.schemas.resource import ResourceCreate, ResourceListData, ResourceOut, ResourceUpdate
-from app.services import resource_service
+from app.schemas.dashboard import AtRiskResourceOut
+from app.services import dashboard_service, resource_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/resources", tags=["Resources"])
@@ -91,6 +93,25 @@ def list_resources(
         limit=limit,
     )
     return SuccessResponse(data=data, message=f"Found {total} resource(s).")
+
+
+# NOTE: must stay above GET "/{resource_id}". FastAPI matches routes in
+# declaration order, so a later "/at-risk" would be captured by
+# "/{resource_id}" and rejected with 422 ("at-risk" is not a UUID).
+@router.get(
+    "/at-risk",
+    response_model=SuccessResponse[list[AtRiskResourceOut]],
+    summary="Resources approaching their rescue deadline",
+    description="Unrescued (AVAILABLE/MATCHING) resources whose expiry_time falls within the next "
+    "few hours, soonest first. Feeds the dashboard's At-Risk card. Available to any authenticated user.",
+)
+def list_at_risk_resources(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = dashboard_service.get_at_risk_resources(db, limit=limit)
+    return SuccessResponse(data=items, message=f"{len(items)} at-risk resource(s).")
 
 
 @router.get(

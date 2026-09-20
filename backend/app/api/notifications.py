@@ -3,8 +3,9 @@ Notification endpoints:
 
     GET   /api/notifications
     PATCH /api/notifications/{notification_id}/read
+    PATCH /api/notifications/read-all
 
-Both require authentication and are scoped to the caller's own
+All require authentication and are scoped to the caller's own
 notifications — there is no way to read or mark someone else's. Listing is
 filtered by user_id in the service layer rather than by a permission check,
 so another user's notifications are invisible rather than forbidden.
@@ -25,7 +26,7 @@ from app.db.database import get_db
 from app.models.enums import NotificationType
 from app.models.user import User
 from app.schemas.common import SuccessResponse
-from app.schemas.notification import NotificationListData, NotificationOut
+from app.schemas.notification import NotificationListData, NotificationOut, NotificationsReadAllData
 from app.services import notification_service
 
 logger = logging.getLogger(__name__)
@@ -88,4 +89,24 @@ def mark_notification_read(
     notification = notification_service.mark_read(db, notification_id, current_user)
     return SuccessResponse(
         data=NotificationOut.model_validate(notification), message="Notification marked as read."
+    )
+
+
+@router.patch(
+    "/read-all",
+    response_model=SuccessResponse[NotificationsReadAllData],
+    summary="Mark all my notifications as read",
+    description=(
+        "Marks every unread notification belonging to the caller as read. Only the caller's own "
+        "notifications are touched. Idempotent — with nothing unread it succeeds with `updated: 0`."
+    ),
+)
+def mark_all_notifications_read(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    updated = notification_service.mark_all_read(db, current_user)
+    return SuccessResponse(
+        data=NotificationsReadAllData(updated=updated, unread_count=0),
+        message=f"{updated} notification(s) marked as read.",
     )

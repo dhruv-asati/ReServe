@@ -1,4 +1,5 @@
-import { api, mockRequest, USE_MOCKS } from './api';
+import { mockRequest, USE_MOCKS } from './api';
+import { getLiveOperationDetail, getLiveOperations } from './liveOperationsService';
 import {
   getDemoOperation,
   getDemoOperationStages,
@@ -22,12 +23,13 @@ import { STATUS, NETWORK_ROLE } from '@/utils/theme';
 /**
  * Fetch every rescue operation for the Operations list.
  *
- * Mock by default (`USE_MOCKS`, see services/api.js); the real request stays
- * dormant until the backend is live and `VITE_USE_MOCKS=false` is set.
+ * Mock by default (`USE_MOCKS`, see services/api.js). With `VITE_USE_MOCKS=false`
+ * the rows are built from the backend's operations and their resources (see
+ * services/liveOperationsService.js) — always an array, in the same row shape.
  */
 export function getRescueOperations() {
   if (USE_MOCKS) return mockRequest(RESCUE_OPERATIONS, { delay: 450 });
-  return api.get('/operations').then((response) => response.data);
+  return getLiveOperations();
 }
 
 /**
@@ -45,6 +47,8 @@ export function getRescueOperations() {
  * entry — see the helpers below.
  */
 export async function getRescueOperationDetail(id) {
+  if (!USE_MOCKS) return getLiveOperationDetail(id);
+
   if (id === DEMO_OPERATION.id) {
     const [operation, stages, events, locations, route] = await Promise.all([
       getDemoOperation(),

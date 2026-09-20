@@ -20,12 +20,12 @@ import { cn } from '@/utils/cn';
  * its ID button, calls `onSelect(operation)`. The row matching `selectedId` is
  * highlighted. Frontend only — the operations are mock data.
  */
-export default function OperationsTable({ operations, selectedId, onSelect }) {
+export default function OperationsTable({ operations, selectedId, onSelect, live = false }) {
   return (
     <div className="panel overflow-x-auto">
       <table className="w-full border-collapse text-xs">
         <caption className="sr-only">
-          Rescue operations (mock data). Select a row to open its details below.
+          Rescue operations{live ? '' : ' (mock data)'}. Select a row to open its details below.
         </caption>
         <thead>
           <tr className="bg-surface-2/60 text-left">

@@ -73,6 +73,10 @@ class RecipientSummary(BaseModel):
     location_address: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    # Remaining capacity the recipient declared (same number the matching
+    # engine's capacity score uses); None means no limit was set. Lets a
+    # client propose a split without a second lookup.
+    capacity: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 

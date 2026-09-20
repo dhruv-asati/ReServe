@@ -3,6 +3,7 @@ Integration tests for in-app notifications:
 
     GET   /api/notifications
     PATCH /api/notifications/{notification_id}/read
+    PATCH /api/notifications/read-all
 
 plus the four events that raise them (allocation confirmed, operation
 assigned, reallocation, operation failed).
@@ -496,3 +497,40 @@ class TestMarkNotificationRead:
 
         assert resp.status_code == 404
         assert resp.json()["error"]["code"] == "NOTIFICATION_NOT_FOUND"
+
+
+class TestMarkAllNotificationsRead:
+    def test_requires_authentication(self, db, client):
+        assert client.patch("/api/notifications/read-all").status_code == 401
+
+    def test_marks_all_of_my_notifications_read(self, db, client):
+        _, _, _, _, recipient_user, _, _ = _setup_allocation(db, client)
+        headers = login_headers(client, recipient_user.email)
+        unread_before = client.get("/api/notifications", headers=headers).json()["data"]["unread_count"]
+        assert unread_before >= 1
+
+        resp = client.patch("/api/notifications/read-all", headers=headers)
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["data"] == {"updated": unread_before, "unread_count": 0}
+        after = client.get("/api/notifications", headers=headers).json()["data"]
+        assert after["unread_count"] == 0
+
+    def test_does_not_touch_other_users_notifications(self, db, client):
+        provider, _, _, _, recipient_user, _, _ = _setup_allocation(db, client)
+        headers = login_headers(client, recipient_user.email)
+
+        client.patch("/api/notifications/read-all", headers=headers)
+
+        db.expire_all()
+        assert all(not n.is_read for n in _notifications_for(db, provider))
+
+    def test_is_idempotent(self, db, client):
+        _, _, _, _, recipient_user, _, _ = _setup_allocation(db, client)
+        headers = login_headers(client, recipient_user.email)
+
+        client.patch("/api/notifications/read-all", headers=headers)
+        second = client.patch("/api/notifications/read-all", headers=headers)
+
+        assert second.status_code == 200, second.text
+        assert second.json()["data"]["updated"] == 0

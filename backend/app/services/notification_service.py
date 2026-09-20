@@ -55,6 +55,11 @@ from app.services import email_service
 
 logger = logging.getLogger(__name__)
 
+# Title of the heads-up sent by the Analytics page's "Notify nearby rescue
+# partners" action. analytics_service.send_surplus_alert also matches on it
+# to avoid re-alerting the same partner within an hour.
+SURPLUS_ALERT_TITLE = "Surplus food expected soon"
+
 
 def _add(
     db: Session,
@@ -310,6 +315,22 @@ def notify_operation_failed(db: Session, *, operation, resource, reason: str, re
         )
 
 
+def notify_surplus_alert(db: Session, *, partner_user_id: uuid.UUID, message: str) -> Optional[Notification]:
+    """
+    A heads-up to one rescue partner that surplus food is expected in a
+    predicted window (raised by POST /api/analytics/surplus-alert). Uses the
+    SYSTEM type — it isn't tied to any single operation. Like every emitter
+    here it only queues the row; the caller commits.
+    """
+    return _add(
+        db,
+        user_id=partner_user_id,
+        notification_type=NotificationType.SYSTEM,
+        title=SURPLUS_ALERT_TITLE,
+        message=message,
+    )
+
+
 # --- Query / mutation for the API layer -------------------------------------
 
 
@@ -387,3 +408,19 @@ def mark_read(db: Session, notification_id: uuid.UUID, current_user: User) -> No
         db.refresh(notification)
 
     return notification
+
+
+def mark_all_read(db: Session, current_user: User) -> int:
+    """
+    Marks every unread notification the caller owns as read and returns how
+    many changed. Scoped to the caller only — an ADMIN marking "all" still
+    only touches their own notifications. Idempotent: with nothing unread it
+    returns 0.
+    """
+    updated = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id, Notification.is_read.is_(False))
+        .update({Notification.is_read: True}, synchronize_session=False)
+    )
+    db.commit()
+    return int(updated)

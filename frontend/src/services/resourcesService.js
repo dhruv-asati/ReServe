@@ -1,5 +1,6 @@
 import { api, mockRequest, USE_MOCKS } from './api';
 import { AT_RISK_RESOURCES, RESOURCE_DETAILS } from '@/data/resources';
+import { toResourceDetails } from './resourceAdapter';
 
 /**
  * Fetch resources approaching their rescue deadline.
@@ -25,5 +26,7 @@ export function getResourceDetails(id) {
     const record = RESOURCE_DETAILS.find((item) => item.id === id) ?? null;
     return mockRequest(record, { delay: 500 });
   }
-  return api.get(`/resources/${encodeURIComponent(id)}`).then((response) => response.data);
+  return api
+    .get(`/resources/${encodeURIComponent(id)}`)
+    .then((response) => toResourceDetails(response.data));
 }

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import admin, allocations, analytics, auth, health, matching, notifications, operations, predictions, recipients, requests, rescue_partners, resources, uploads, users
+from app.api import admin, allocations, analytics, auth, dashboard, health, matching, notifications, operations, predictions, recipients, requests, rescue_partners, resources, uploads, users
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging_config import configure_logging
@@ -88,6 +88,10 @@ openapi_tags = [
     {
         "name": "Analytics",
         "description": "Aggregate stats across resources, allocations, and operations.",
+    },
+    {
+        "name": "Dashboard",
+        "description": "Read-only feeds for the dashboard: overview stats, recent activity, network map locations.",
     },
     {
         "name": "Predictions",
@@ -221,6 +225,7 @@ app.include_router(matching.router)
 app.include_router(allocations.router)
 app.include_router(operations.router)
 app.include_router(analytics.router)
+app.include_router(dashboard.router)
 app.include_router(predictions.router)
 app.include_router(notifications.router)
 app.include_router(admin.router)

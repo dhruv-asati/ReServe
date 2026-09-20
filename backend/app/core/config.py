@@ -81,7 +81,12 @@ class Settings(BaseSettings):
     # --- CORS ---
     # Comma-separated list of allowed origins in the .env file,
     # e.g. CORS_ORIGINS=http://localhost:5173,http://localhost:3000
-    CORS_ORIGINS: str = Field(default="http://localhost:5173,http://localhost:3000")
+    # The Vite dev server (frontend/vite.config.js) runs on port 5173. A browser
+    # treats http://localhost:5173 and http://127.0.0.1:5173 as different
+    # origins, so both are allowed by default.
+    CORS_ORIGINS: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+    )
 
     # --- Logging ---
     LOG_LEVEL: str = Field(default="INFO")
@@ -151,8 +156,17 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        """Parse the comma-separated CORS_ORIGINS string into a list."""
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        """
+        Parse the comma-separated CORS_ORIGINS string into a list.
+
+        Trailing slashes are dropped: browsers send the Origin header without
+        one, so "http://localhost:5173/" would otherwise never match.
+        """
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.CORS_ORIGINS.split(",")
+            if origin.strip()
+        ]
 
 
 @lru_cache

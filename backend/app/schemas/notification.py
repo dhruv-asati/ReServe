@@ -3,6 +3,7 @@ Pydantic schemas for:
 
     GET   /api/notifications
     PATCH /api/notifications/{notification_id}/read
+    PATCH /api/notifications/read-all
 
 A Notification is always scoped to exactly one user (see
 app/models/notification.py). There is deliberately no create schema here:
@@ -49,3 +50,8 @@ class NotificationListData(BaseModel):
         description="Total unread notifications for this user, ignoring the is_read filter and "
         "pagination — so a client can render a badge without a second request."
     )
+
+
+class NotificationsReadAllData(BaseModel):
+    updated: int = Field(description="How many notifications were unread and are now marked read.")
+    unread_count: int = Field(description="Unread notifications left for this user (always 0 after this call).")

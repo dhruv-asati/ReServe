@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FilterX, FlaskConical, Network as NetworkIcon, SearchX } from 'lucide-react';
 
-import { Badge, Button, EmptyState, LoadingState } from '@/components/ui';
+import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@/components/ui';
 import NetworkOrgCard from '@/components/NetworkOrgCard';
 import NetworkDirectoryFilters from '@/components/NetworkDirectoryFilters';
 import NetworkDirectoryMap from '@/components/NetworkDirectoryMap';
@@ -83,6 +83,8 @@ function noMatchDescription({ name, location, resourceType, availability }) {
  */
 export default function Network() {
   const [organizations, setOrganizations] = useState(null);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState(null);
   const [revealRequest, setRevealRequest] = useState(0);
@@ -90,10 +92,22 @@ export default function Network() {
 
   useEffect(() => {
     let active = true;
-    getNetworkOrganizations().then((data) => active && setOrganizations(data));
+    setError(null);
+    getNetworkOrganizations()
+      .then((data) => {
+        if (active) setOrganizations(Array.isArray(data) ? data : []);
+      })
+      .catch((failure) => {
+        if (active) setError(failure);
+      });
     return () => {
       active = false;
     };
+  }, [reloadKey]);
+
+  const retry = useCallback(() => {
+    setOrganizations(null);
+    setReloadKey((key) => key + 1);
   }, []);
 
   const updateFilter = useCallback(
@@ -202,7 +216,7 @@ export default function Network() {
         </div>
 
         {/* Hidden only when loading has finished and there is nothing to filter. */}
-        {(organizations === null || organizations.length > 0) && (
+        {!error && (organizations === null || organizations.length > 0) && (
           <NetworkDirectoryFilters
             filters={filters}
             counts={counts}
@@ -211,7 +225,15 @@ export default function Network() {
           />
         )}
 
-        {organizations === null ? (
+        {error ? (
+          <div className="panel">
+            <ErrorState
+              title="Couldn't load the network directory"
+              description={error.message || 'The request could not be completed. Try again in a moment.'}
+              onRetry={retry}
+            />
+          </div>
+        ) : organizations === null ? (
           <LoadingState variant="skeleton" rows={5} label="Loading the network directory…" />
         ) : organizations.length === 0 ? (
           <div className="panel">

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, Bell, Plus, ChevronDown, LogOut, UserCircle, X } from 'lucide-react';
+import { Search, Plus, ChevronDown, LogOut, UserCircle, X } from 'lucide-react';
 
 import { Button, Badge } from '@/components/ui';
+import NotificationsMenu from '@/components/NotificationsMenu';
 import { NAV_ITEMS } from '@/routes/navigation';
 import { PATHS } from '@/routes/paths';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +14,7 @@ const ROLE_LABELS = {
   provider: 'Provider',
   recipient: 'Recipient',
   'rescue-partner': 'Rescue Partner',
+  admin: 'Admin',
 };
 
 /**
@@ -23,7 +25,7 @@ const ROLE_LABELS = {
  * bounded by a deadline, so the operator should always see the current time
  * next to the window they are working against.
  */
-export default function Topbar({ notificationCount = 0 }) {
+export default function Topbar({ notificationCount = 0, onNotificationCountChange }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -97,16 +99,7 @@ export default function Topbar({ notificationCount = 0 }) {
         />
       )}
 
-      <button
-        type="button"
-        aria-label="Notifications"
-        className="relative shrink-0 rounded-control p-2 text-muted transition-colors hover:bg-surface-2 hover:text-content"
-      >
-        <Bell size={17} strokeWidth={1.75} />
-        {notificationCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-400 ring-2 ring-surface-1" />
-        )}
-      </button>
+      <NotificationsMenu unreadCount={notificationCount} onUnreadCountChange={onNotificationCountChange} />
 
       <Button
         as={Link}

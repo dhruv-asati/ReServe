@@ -10,10 +10,9 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 /**
  * Login — organization sign-in.
  *
- * Frontend only: credentials are checked against mock accounts created on
- * /register (via AuthContext, backed by localStorage) with simulated network
- * latency. There is no real backend yet — swapping one in later is a
- * one-line change inside services/auth.js.
+ * Credentials are checked by the ReServe backend (POST /auth/login) through
+ * AuthContext -> services/auth.js, which stores the JWT tokens and the
+ * signed-in user.
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

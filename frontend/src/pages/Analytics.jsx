@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Package,
   CheckCircle2,
@@ -25,21 +25,22 @@ import {
 
 import StatCard from '@/components/StatCard';
 import ChartCard from '@/components/ChartCard';
+import { ErrorState } from '@/components/ui';
 import PredictiveSurplusCard from '@/components/PredictiveSurplusCard';
 import { CHART_ACTIVE_DOT, CHART_AXIS, CHART_CURSOR, RESOURCE_META } from '@/utils/theme';
 import {
+  ANALYTICS_LIVE,
+  INSIGHT_WEEKS,
+  TREND_DAYS,
   getAnalyticsSummary,
+  getAnalyticsInsights,
   getResourcesRescuedOverTime,
   getFoodVsMedical,
-  getSuccessfulAllocations,
-  getAvgMatchingTime,
-  getSupplyVsDemand,
-  getDeadlinePerformance,
-  getOperationCompletion,
-  getAtRiskVsCompleted,
-  getSurplusPredictionHistory,
-  getSurplusPrediction,
+  getSurplusForecast,
 } from '@/services/analyticsService';
+
+/** Live quantities mix units (meals, kg, vials...), so they are plain "units". */
+const QUANTITY_UNIT = 'units';
 
 const SUCCESS_COLOR = '#22c55e';
 const CRITICAL_COLOR = '#f4506a';
@@ -51,7 +52,7 @@ const URGENT_COLOR = '#f59e0b';
 const COMPLETION_COLORS = {
   completed: SUCCESS_COLOR,
   inProgress: ACTIVE_COLOR,
-  cancelled: CRITICAL_COLOR,
+  failed: CRITICAL_COLOR,
 };
 
 /** Status → color for the deadline-performance chart. */
@@ -79,60 +80,98 @@ const tooltipStyle = {
   cursor: CHART_CURSOR.bar,
 };
 
+/** Every value in every row of `rows` for `keys` is zero / missing → nothing to plot. */
+const hasNoValues = (rows, keys) => rows.every((row) => keys.every((key) => !row[key]));
+
+/** 4.2 -> { value: '4.2', unit: 'min' }; 0.4 -> { value: '24', unit: 'sec' }; null -> em dash. */
+function matchingTimeStat(minutes) {
+  if (minutes === null || minutes === undefined) return { value: '—', unit: undefined };
+  if (minutes < 1) return { value: String(Math.round(minutes * 60)), unit: 'sec' };
+  return { value: minutes.toFixed(1), unit: 'min' };
+}
+
 /**
- * Analytics — reporting overview built on mock data.
+ * Analytics — reporting overview built only on real data.
  *
- * Every figure on this page (summary cards and charts alike) is illustrative
- * placeholder data from src/data/analytics.js, not a verified or real-world
- * production metric — the page says so up top and on every chart. Each
- * section fetches through its own mock service, mirroring the pattern
- * already used on the Dashboard page, so wiring in a live reporting endpoint
- * later needs no layout changes here.
+ * Every summary card and chart is computed by the backend from the database
+ * (see services/analyticsService.js). There is no sample data: a chart with
+ * nothing to plot shows an empty state instead, and the summary cards read
+ * zero. Sections load independently, so one slow endpoint never blocks the
+ * rest of the page.
  */
 export default function Analytics() {
   const [summary, setSummary] = useState(null);
+  const [insights, setInsights] = useState(null);
   const [rescuedOverTime, setRescuedOverTime] = useState(null);
   const [foodVsMedical, setFoodVsMedical] = useState(null);
-  const [allocations, setAllocations] = useState(null);
-  const [matchingTime, setMatchingTime] = useState(null);
-  const [supplyVsDemand, setSupplyVsDemand] = useState(null);
-  const [deadlinePerformance, setDeadlinePerformance] = useState(null);
-  const [operationCompletion, setOperationCompletion] = useState(null);
-  const [atRiskVsCompleted, setAtRiskVsCompleted] = useState(null);
-  const [surplusHistory, setSurplusHistory] = useState(null);
-  const [surplusPrediction, setSurplusPrediction] = useState(null);
+  const [surplusForecast, setSurplusForecast] = useState(null);
+
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setError(null);
 
-    getAnalyticsSummary().then((data) => active && setSummary(data));
-    getResourcesRescuedOverTime().then((data) => active && setRescuedOverTime(data));
-    getFoodVsMedical().then((data) => active && setFoodVsMedical(data));
-    getSuccessfulAllocations().then((data) => active && setAllocations(data));
-    getAvgMatchingTime().then((data) => active && setMatchingTime(data));
-    getSupplyVsDemand().then((data) => active && setSupplyVsDemand(data));
-    getDeadlinePerformance().then((data) => active && setDeadlinePerformance(data));
-    getOperationCompletion().then((data) => active && setOperationCompletion(data));
-    getAtRiskVsCompleted().then((data) => active && setAtRiskVsCompleted(data));
-    getSurplusPredictionHistory().then((data) => active && setSurplusHistory(data));
-    getSurplusPrediction().then((data) => active && setSurplusPrediction(data));
+    // Every section loads on its own; the first failure shows the error panel
+    // (with Retry) instead of leaving the spinners up forever.
+    const load = (request, setter) =>
+      request
+        .then((data) => active && setter(data))
+        .catch((failure) => active && setError(failure));
+
+    load(getAnalyticsSummary(), setSummary);
+    load(getAnalyticsInsights(), setInsights);
+    load(getResourcesRescuedOverTime(), setRescuedOverTime);
+    load(getFoodVsMedical(), setFoodVsMedical);
+    load(getSurplusForecast(), setSurplusForecast);
 
     return () => {
       active = false;
     };
+  }, [reloadKey]);
+
+  const retry = useCallback(() => {
+    setSummary(null);
+    setInsights(null);
+    setRescuedOverTime(null);
+    setFoodVsMedical(null);
+    setSurplusForecast(null);
+    setReloadKey((key) => key + 1);
   }, []);
 
-  const loadingSummary = !summary;
+  const loadingSummary = !summary || !insights;
 
   // Derived from the chart data itself, not a separately hardcoded number,
   // so the headline rate can never drift out of sync with the donut.
-  const onTimeRate = deadlinePerformance
-    ? Math.round(
-        (deadlinePerformance.find((d) => d.key === 'onTime')?.value /
-          deadlinePerformance.reduce((sum, d) => sum + d.value, 0)) *
-          100,
-      )
-    : null;
+  const deadlineTotal = insights
+    ? insights.deadlinePerformance.reduce((sum, entry) => sum + entry.value, 0)
+    : 0;
+  const onTimeRate =
+    insights && deadlineTotal > 0
+      ? Math.round(
+          ((insights.deadlinePerformance.find((entry) => entry.key === 'onTime')?.value ?? 0) /
+            deadlineTotal) *
+            100,
+        )
+      : null;
+
+  const matchingStat = matchingTimeStat(insights?.avgMatchingMinutes);
+
+  if (error) {
+    return (
+      <div className="animate-fade-up space-y-6 lg:space-y-8">
+        <h1 className="text-xl font-bold tracking-tight text-content sm:text-2xl">Analytics</h1>
+        <div className="panel">
+          <ErrorState
+            title="Couldn't load analytics"
+            description={error.message || 'The request could not be completed. Try again in a moment.'}
+            onRetry={retry}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-up space-y-6 lg:space-y-8">
@@ -145,12 +184,21 @@ export default function Analytics() {
 
       <div className="flex items-start gap-2.5 rounded-control border border-line bg-surface-2/60 px-4 py-3">
         <Info size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-muted" />
-        <p className="text-xs leading-relaxed text-muted">
-          The figures and charts on this page use{' '}
-          <span className="font-medium text-content">illustrative mock data</span> to preview the
-          Analytics layout. They are not verified or real-world production statistics and should
-          not be cited as measured impact.
-        </p>
+        {ANALYTICS_LIVE ? (
+          <p className="text-xs leading-relaxed text-muted">
+            Every figure and chart here is computed from the database. Where nothing has been
+            recorded yet the cards read zero and the chart shows an empty state — nothing is
+            estimated or filled in.
+          </p>
+        ) : (
+          <p className="text-xs leading-relaxed text-muted">
+            The app is not connected to the backend, so there is nothing to show. Set{' '}
+            <span className="font-medium text-content">VITE_USE_MOCKS=false</span> in the
+            frontend <span className="font-medium text-content">.env</span>, restart{' '}
+            <span className="font-medium text-content">npm run dev</span>, and sign in with a
+            backend account.
+          </p>
+        )}
       </div>
 
       {/* ---------- Summary Cards ---------- */}
@@ -177,9 +225,13 @@ export default function Analytics() {
           icon={Timer}
           tone="active"
           loading={loadingSummary}
-          value={summary?.avgMatchingTime.value}
-          unit={summary?.avgMatchingTime.unit}
-          delta={summary?.avgMatchingTime.delta}
+          value={matchingStat.value}
+          unit={matchingStat.unit}
+          delta={
+            insights?.matchingSamples
+              ? `${insights.matchingSamples} matched request${insights.matchingSamples === 1 ? '' : 's'}, last ${insights.windowWeeks} weeks`
+              : 'No matched requests yet'
+          }
         />
         <StatCard
           label="Active Operations"
@@ -195,9 +247,12 @@ export default function Analytics() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
           title="Resources Rescued Over Time"
-          subtitle="Daily kilograms rescued, last 14 days."
+          subtitle={`Daily ${QUANTITY_UNIT} delivered, last ${TREND_DAYS} days.`}
           loading={!rescuedOverTime}
           loadingLabel="Loading trend…"
+          live={ANALYTICS_LIVE}
+          empty={Boolean(rescuedOverTime) && hasNoValues(rescuedOverTime, ['quantity'])}
+          emptyLabel="Nothing delivered in this period yet. Deliveries show up here once an operation is marked delivered."
         >
           <AreaChart data={rescuedOverTime ?? []} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
             <defs>
@@ -222,10 +277,10 @@ export default function Analytics() {
               axisLine={false}
               width={40}
             />
-            <Tooltip {...tooltipStyle} cursor={CHART_CURSOR.line} formatter={(value) => [`${value} kg`, 'Rescued']} />
+            <Tooltip {...tooltipStyle} cursor={CHART_CURSOR.line} formatter={(value) => [`${value} ${QUANTITY_UNIT}`, 'Rescued']} />
             <Area
               type="monotone"
-              dataKey="kg"
+              dataKey="quantity"
               stroke={BRAND_COLOR}
               strokeWidth={2}
               fill="url(#rescuedFill)"
@@ -239,9 +294,12 @@ export default function Analytics() {
           subtitle="Share of total resources rescued, by type."
           loading={!foodVsMedical}
           loadingLabel="Loading split…"
+          live={ANALYTICS_LIVE}
+          empty={Boolean(foodVsMedical) && hasNoValues(foodVsMedical, ['value'])}
+          emptyLabel="Nothing rescued yet. The split appears once an allocation is delivered."
         >
           <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-            <Tooltip {...tooltipStyle} formatter={(value) => [`${value} kg`, undefined]} />
+            <Tooltip {...tooltipStyle} formatter={(value) => [`${value} ${QUANTITY_UNIT}`, undefined]} />
             <Legend wrapperStyle={{ fontSize: 12, color: CHART_AXIS.stroke }} />
             <Pie
               data={foodVsMedical ?? []}
@@ -261,11 +319,14 @@ export default function Analytics() {
 
         <ChartCard
           title="Successful Allocations"
-          subtitle="Successful vs. unsuccessful matches, by week."
-          loading={!allocations}
+          subtitle="Delivered vs. cancelled allocations, by week."
+          loading={!insights}
           loadingLabel="Loading allocations…"
+          live={ANALYTICS_LIVE}
+          empty={Boolean(insights) && hasNoValues(insights.allocations, ['successful', 'unsuccessful'])}
+          emptyLabel="No delivered or cancelled allocations in this period yet."
         >
-          <BarChart data={allocations ?? []} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+          <BarChart data={insights?.allocations ?? []} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
             <CartesianGrid stroke={CHART_AXIS.grid} vertical={false} />
             <XAxis
               dataKey="label"
@@ -280,19 +341,20 @@ export default function Analytics() {
               tickLine={false}
               axisLine={false}
               width={32}
+              allowDecimals={false}
             />
             <Tooltip {...tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: 12, color: CHART_AXIS.stroke }} />
             <Bar
               dataKey="successful"
-              name="Successful"
+              name="Delivered"
               stackId="allocations"
               fill={SUCCESS_COLOR}
               radius={[0, 0, 0, 0]}
             />
             <Bar
               dataKey="unsuccessful"
-              name="Unsuccessful"
+              name="Cancelled"
               stackId="allocations"
               fill={CRITICAL_COLOR}
               radius={[4, 4, 0, 0]}
@@ -302,11 +364,14 @@ export default function Analytics() {
 
         <ChartCard
           title="Average Matching Time"
-          subtitle="Minutes from rescue creation to confirmed match, by week."
-          loading={!matchingTime}
+          subtitle="Minutes from rescue creation to first match, by week."
+          loading={!insights}
           loadingLabel="Loading matching time…"
+          live={ANALYTICS_LIVE}
+          empty={Boolean(insights) && insights.matchingTime.every((week) => week.minutes === null)}
+          emptyLabel="No rescue requests have been matched in this period yet."
         >
-          <LineChart data={matchingTime ?? []} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+          <LineChart data={insights?.matchingTime ?? []} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
             <CartesianGrid stroke={CHART_AXIS.grid} vertical={false} />
             <XAxis
               dataKey="label"
@@ -320,7 +385,7 @@ export default function Analytics() {
               fontSize={CHART_AXIS.fontSize}
               tickLine={false}
               axisLine={false}
-              width={32}
+              width={44}
               unit=" min"
             />
             <Tooltip {...tooltipStyle} cursor={CHART_CURSOR.line} formatter={(value) => [`${value} min`, 'Avg. time']} />
@@ -329,6 +394,7 @@ export default function Analytics() {
               dataKey="minutes"
               stroke={ACTIVE_COLOR}
               strokeWidth={2}
+              connectNulls={false}
               dot={{ r: 3, fill: ACTIVE_COLOR }}
               activeDot={CHART_ACTIVE_DOT}
             />
@@ -343,20 +409,23 @@ export default function Analytics() {
             Rescue Outcomes
           </h2>
           <p className="mt-0.5 text-xs text-muted">
-            How supply matched demand, and how operations resolved — illustrative mock data, same
-            as above.
+            How supply matched demand, and how operations resolved. The weekly charts cover the last{' '}
+            {INSIGHT_WEEKS} weeks (weeks start on Monday); quantities are units as recorded.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <ChartCard
             title="Supply vs. Demand"
-            subtitle="Kilograms of resources logged vs. kilograms requested, by week."
-            loading={!supplyVsDemand}
+            subtitle="Units posted vs. units requested, by week."
+            loading={!insights}
             loadingLabel="Loading supply and demand…"
+            live={ANALYTICS_LIVE}
+            empty={Boolean(insights) && hasNoValues(insights.supplyVsDemand, ['supply', 'demand'])}
+            emptyLabel="No resources posted or requested in this period yet."
           >
             <BarChart
-              data={supplyVsDemand ?? []}
+              data={insights?.supplyVsDemand ?? []}
               margin={{ top: 8, right: 12, left: -12, bottom: 0 }}
             >
               <CartesianGrid stroke={CHART_AXIS.grid} vertical={false} />
@@ -374,7 +443,7 @@ export default function Analytics() {
                 axisLine={false}
                 width={40}
               />
-              <Tooltip {...tooltipStyle} formatter={(value) => [`${value} kg`, undefined]} />
+              <Tooltip {...tooltipStyle} formatter={(value) => [`${value} ${QUANTITY_UNIT}`, undefined]} />
               <Legend wrapperStyle={{ fontSize: 12, color: CHART_AXIS.stroke }} />
               <Bar dataKey="supply" name="Supply" fill={BRAND_COLOR} radius={[4, 4, 0, 0]} />
               <Bar dataKey="demand" name="Demand" fill={ACTIVE_COLOR} radius={[4, 4, 0, 0]} />
@@ -385,17 +454,20 @@ export default function Analytics() {
             title="Completed Before Deadline"
             subtitle={
               onTimeRate !== null
-                ? `${onTimeRate}% of rescues completed before their deadline.`
-                : 'Share of rescues completed before their deadline.'
+                ? `${onTimeRate}% of delivered rescues arrived before their deadline.`
+                : 'Share of delivered rescues that arrived before their deadline.'
             }
-            loading={!deadlinePerformance}
+            loading={!insights}
             loadingLabel="Loading deadline performance…"
+            live={ANALYTICS_LIVE}
+            empty={Boolean(insights) && deadlineTotal === 0}
+            emptyLabel="No delivered rescues with a deadline in this period yet."
           >
             <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
               <Tooltip {...tooltipStyle} formatter={(value) => [`${value} rescues`, undefined]} />
               <Legend wrapperStyle={{ fontSize: 12, color: CHART_AXIS.stroke }} />
               <Pie
-                data={deadlinePerformance ?? []}
+                data={insights?.deadlinePerformance ?? []}
                 stroke="none"
                 dataKey="value"
                 nameKey="name"
@@ -403,7 +475,7 @@ export default function Analytics() {
                 outerRadius="80%"
                 paddingAngle={2}
               >
-                {(deadlinePerformance ?? []).map((entry) => (
+                {(insights?.deadlinePerformance ?? []).map((entry) => (
                   <Cell key={entry.key} fill={DEADLINE_COLORS[entry.key] ?? BRAND_COLOR} />
                 ))}
               </Pie>
@@ -412,12 +484,15 @@ export default function Analytics() {
 
           <ChartCard
             title="Operation Completion"
-            subtitle="Operations by how they resolved, as a count."
-            loading={!operationCompletion}
+            subtitle="Operations by how they resolved."
+            loading={!insights}
             loadingLabel="Loading operation completion…"
+            live={ANALYTICS_LIVE}
+            empty={Boolean(insights) && hasNoValues(insights.operationCompletion, ['value'])}
+            emptyLabel="No operations started in this period yet."
           >
             <BarChart
-              data={operationCompletion ?? []}
+              data={insights?.operationCompletion ?? []}
               layout="vertical"
               margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
             >
@@ -441,7 +516,7 @@ export default function Analytics() {
               />
               <Tooltip {...tooltipStyle} formatter={(value) => [`${value} operations`, undefined]} />
               <Bar dataKey="value" name="Operations" radius={[0, 4, 4, 0]}>
-                {(operationCompletion ?? []).map((entry) => (
+                {(insights?.operationCompletion ?? []).map((entry) => (
                   <Cell key={entry.key} fill={COMPLETION_COLORS[entry.key] ?? BRAND_COLOR} />
                 ))}
               </Bar>
@@ -450,12 +525,15 @@ export default function Analytics() {
 
           <ChartCard
             title="At-Risk vs. Completed Operations"
-            subtitle="Count of operations, by week."
-            loading={!atRiskVsCompleted}
+            subtitle="Completed on time vs. failed or overdue, by week."
+            loading={!insights}
             loadingLabel="Loading at-risk comparison…"
+            live={ANALYTICS_LIVE}
+            empty={Boolean(insights) && hasNoValues(insights.atRiskVsCompleted, ['completed', 'atRisk'])}
+            emptyLabel="No completed or at-risk operations in this period yet."
           >
             <BarChart
-              data={atRiskVsCompleted ?? []}
+              data={insights?.atRiskVsCompleted ?? []}
               margin={{ top: 8, right: 12, left: -12, bottom: 0 }}
             >
               <CartesianGrid stroke={CHART_AXIS.grid} vertical={false} />
@@ -483,12 +561,8 @@ export default function Analytics() {
         </div>
       </section>
 
-      {/* ---------- Predictive Surplus Demo ---------- */}
-      <PredictiveSurplusCard
-        history={surplusHistory}
-        prediction={surplusPrediction}
-        loading={!surplusHistory || !surplusPrediction}
-      />
+      {/* ---------- Predictive Surplus ---------- */}
+      <PredictiveSurplusCard forecast={surplusForecast} loading={!surplusForecast} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { mockRequest } from './api';
+import { api, http, mockRequest } from './api';
 import { MATCH_RESOURCE, MATCH_CANDIDATES } from '@/data/matching';
 import { URGENCY } from '@/utils/theme';
 
@@ -57,4 +57,67 @@ export function getMatchingResource() {
  */
 export function getMatchingCandidates() {
   return mockRequest(MATCH_CANDIDATES, { delay: 600 });
+}
+
+// ---------------------------------------------------------------------------
+// Live mode — the real matching engine (backend/app/api/matching.py). The mock
+// functions above stay for VITE_USE_MOCKS=true; the Smart Matching page for
+// live data (pages/LiveMatching.jsx) only uses what follows.
+// ---------------------------------------------------------------------------
+
+/** Resource statuses a matching run / allocation is still possible for. */
+const MATCHABLE_STATUSES = ['AVAILABLE', 'MATCHING'];
+
+/** The signed-in provider's own resources that can still be matched, newest first. */
+export function listMatchableResources() {
+  return api.get('/resources', { params: { mine: true, limit: 100 } }).then((response) => {
+    const items = response.data?.items ?? [];
+    return items.filter((item) => MATCHABLE_STATUSES.includes(item.status));
+  });
+}
+
+/** POST /api/matching/{id} — runs the engine (safe to re-run) and returns MatchingResultsData. */
+export function runMatching(resourceId) {
+  return http.post(`/matching/${encodeURIComponent(resourceId)}`, {});
+}
+
+/** GET /api/matching/{id}/results — the latest run, or null if matching hasn't been run yet. */
+export function getLatestMatching(resourceId) {
+  return api
+    .get(`/matching/${encodeURIComponent(resourceId)}/results`)
+    .then((response) => response.data)
+    .catch(() => null);
+}
+
+/**
+ * Commit a plan: one POST /api/allocations per chosen candidate (sequential, so
+ * the backend's remaining-quantity check sees each one), then one
+ * POST /api/operations to execute them.
+ *
+ * On failure the rejection carries `created` (allocations already saved) and
+ * `stage` ('allocation' | 'operation') so the page can say exactly what
+ * happened — allocations that were saved are not rolled back.
+ */
+export async function confirmAllocationPlan({ rescueRequestId, allocations }) {
+  const created = [];
+  for (const item of allocations) {
+    try {
+      created.push(
+        await http.post('/allocations', {
+          match_id: item.matchId,
+          allocated_quantity: item.quantity,
+          reason: item.reason,
+        }),
+      );
+    } catch (error) {
+      throw { ...error, created, stage: 'allocation' };
+    }
+  }
+
+  try {
+    const operation = await http.post('/operations', { rescue_request_id: rescueRequestId });
+    return { allocations: created, operation };
+  } catch (error) {
+    throw { ...error, created, stage: 'operation' };
+  }
 }

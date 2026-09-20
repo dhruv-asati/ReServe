@@ -3,6 +3,7 @@ Operation endpoints:
 
     POST  /api/operations                       Create an operation for a rescue request
     GET   /api/operations                        List operations, with filters
+    GET   /api/operations/active                 Not-yet-closed operations (dashboard feed)
     PATCH /api/operations/{operation_id}/status   Move an operation through its status lifecycle
 
 Creating an operation is restricted to the underlying resource's own
@@ -25,6 +26,7 @@ from app.models.operation import RescueOperation
 from app.models.user import User
 from app.schemas.allocation import AllocationOut, RescueHubSummary
 from app.schemas.common import SuccessResponse
+from app.schemas.dashboard import ActiveOperationOut
 from app.schemas.matching import RecipientSummary
 from app.schemas.operation import (
     OperationAllocationSummary,
@@ -39,7 +41,7 @@ from app.schemas.operation import (
     PartnerSummary,
 )
 from app.schemas.reallocation import ReallocationRequest, ReallocationResultData
-from app.services import allocation_service, operation_service, reallocation_service
+from app.services import allocation_service, dashboard_service, operation_service, reallocation_service
 
 router = APIRouter(prefix="/api/operations", tags=["Operations"])
 
@@ -144,6 +146,22 @@ def list_operations(
         has_more=skip + len(items) < total,
     )
     return SuccessResponse(data=data, message=f"Found {total} operation(s).")
+
+
+@router.get(
+    "/active",
+    response_model=SuccessResponse[list[ActiveOperationOut]],
+    summary="Active rescue operations",
+    description="Operations that are not yet closed out (PLANNED, IN_TRANSIT or DELIVERED), most recently "
+    "updated first, in the display shape the dashboard renders. Available to any authenticated user.",
+)
+def list_active_operations(
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = dashboard_service.get_active_operations(db, limit=limit)
+    return SuccessResponse(data=items, message=f"{len(items)} active operation(s).")
 
 
 @router.get(

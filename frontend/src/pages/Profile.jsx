@@ -57,7 +57,7 @@ const VERIFICATION_ICONS = {
  * refresh for that account.
  */
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [profile, setProfile] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -148,6 +148,8 @@ export default function Profile() {
       setDraft(null);
       setEditing(false);
       setJustSaved(true);
+      // Keep the sidebar/topbar (which read the session user) in sync with the saved name/org.
+      refreshUser?.().catch(() => {});
     } catch (err) {
       setSaveError(err?.message ?? 'Could not save your changes. Try again.');
     } finally {
@@ -284,11 +286,10 @@ export default function Profile() {
                   <Input
                     label="Email"
                     type="email"
-                    required
                     icon={Mail}
                     value={draft.email}
-                    onChange={(e) => updateField('email', e.target.value)}
-                    error={errors.email}
+                    disabled
+                    hint="Email can't be changed here."
                   />
                   <Input
                     label="Phone"
@@ -559,8 +560,9 @@ function PageHeader() {
         Organization details and capabilities — visible to the rescue network when your organization is matched.
       </p>
       <p className="mt-3 rounded-control border border-line bg-surface-2 px-3.5 py-3 text-xs leading-relaxed text-muted">
-        There's no backend yet — changes you save here are stored in this browser for your account and are not
-        synced anywhere else.
+        Organization name, contact name, email, phone, address and requirements are saved to your account. Service
+        area, operating hours, supported resource types and capacity aren't part of the account yet, so those stay
+        saved on this device only.
       </p>
     </div>
   );

@@ -1,9 +1,12 @@
 """
 Pydantic schemas for:
 
-    GET /api/analytics/overview
-    GET /api/analytics/trends
-    GET /api/analytics/resource-types
+    GET  /api/analytics/overview
+    GET  /api/analytics/trends
+    GET  /api/analytics/resource-types
+    GET  /api/analytics/insights
+    GET  /api/analytics/surplus-forecast
+    POST /api/analytics/surplus-alert
 
 All three are cheap-to-compute snapshots of the platform's current state,
 built entirely from real aggregate queries against the live database
@@ -15,6 +18,7 @@ there isn't enough recorded activity to forecast from.)
 """
 
 from datetime import date, datetime
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -114,3 +118,124 @@ class AnalyticsResourceTypeData(BaseModel):
         description="One entry per ResourceType, ordered as the enum declares them."
     )
     generated_at: datetime = Field(description="When this snapshot was computed (server time, UTC).")
+
+
+# --------------------------------------------------------------------------
+# GET /api/analytics/insights — the Analytics page's weekly / outcome charts
+# --------------------------------------------------------------------------
+
+
+class WeeklySupplyDemand(BaseModel):
+    week_start: date = Field(description="Monday (UTC) of the week.")
+    supply: float = Field(description="Quantity of resources posted that week (cancelled ones excluded).")
+    demand: float = Field(description="Quantity requested by recipients that week (cancelled ones excluded).")
+
+
+class WeeklyAllocationOutcome(BaseModel):
+    week_start: date
+    successful: int = Field(description="Allocations created that week that have been DELIVERED.")
+    unsuccessful: int = Field(description="Allocations created that week that were CANCELLED.")
+
+
+class WeeklyMatchingTime(BaseModel):
+    week_start: date
+    avg_minutes: Optional[float] = Field(
+        description="Average minutes from a rescue request being created to its first allocation. "
+        "null when nothing was matched that week."
+    )
+    samples: int = Field(description="Rescue requests that contributed to the average.")
+
+
+class DeadlinePerformanceData(BaseModel):
+    on_time: int = Field(description="Operations that arrived at or before their deadline.")
+    late: int = Field(description="Operations that arrived after their deadline.")
+    no_deadline: int = Field(description="Arrived operations with no deadline recorded — not counted as either.")
+
+
+class OperationCompletionData(BaseModel):
+    completed: int = Field(description="Operations in DELIVERED or COMPLETED status.")
+    in_progress: int = Field(description="Operations in PLANNED or IN_TRANSIT status.")
+    failed: int = Field(description="Operations in FAILED status.")
+
+
+class WeeklyOperationOutcome(BaseModel):
+    week_start: date = Field(description="Monday (UTC) of the week the operations were created.")
+    completed: int = Field(description="Arrived, and not after their deadline.")
+    at_risk: int = Field(description="Failed, arrived after their deadline, or still open past their deadline.")
+
+
+class AnalyticsInsightsData(BaseModel):
+    """
+    Every figure is computed from real rows. An empty platform yields zeros,
+    nulls and all-zero series — never illustrative numbers. Quantities are
+    summed as recorded (mixed units are not converted).
+    """
+
+    window_weeks: int
+    start_week: date = Field(description="Monday (UTC) of the first week in the window.")
+    end_week: date = Field(description="Monday (UTC) of the current, still in-progress week.")
+
+    supply_vs_demand: list[WeeklySupplyDemand]
+    allocations: list[WeeklyAllocationOutcome]
+    matching_time: list[WeeklyMatchingTime]
+    avg_matching_minutes: Optional[float] = Field(
+        description="Average matching time over the whole window; null when nothing was matched."
+    )
+    matching_samples: int
+    deadline_performance: DeadlinePerformanceData
+    operation_completion: OperationCompletionData
+    operation_outcomes: list[WeeklyOperationOutcome]
+
+    generated_at: datetime
+
+
+# --------------------------------------------------------------------------
+# Predictive surplus
+# --------------------------------------------------------------------------
+
+
+class SurplusDay(BaseModel):
+    label: str = Field(description="Short weekday name in the caller's timezone, e.g. 'Mon'.")
+    day: date = Field(description="The calendar day (caller's timezone).")
+    quantity: float = Field(description="Food surplus that became available that day.")
+
+
+class SurplusWindow(BaseModel):
+    start_hour: int = Field(ge=0, le=23, description="Start of the predicted hour (caller's local time, 0-23).")
+    end_hour: int = Field(ge=0, le=23, description="End of the predicted hour (caller's local time, 0-23).")
+    low: float = Field(description="Smallest per-day surplus seen in this hour.")
+    high: float = Field(description="Largest per-day surplus seen in this hour.")
+    unit: str
+    days_with_surplus: int = Field(description="How many days in the window had surplus in this hour.")
+    window_days: int = Field(description="How many days of history were examined.")
+
+
+class SurplusForecastData(BaseModel):
+    unit: str = Field(description="Unit of the history figures ('units' when the recorded units are mixed).")
+    history: list[SurplusDay] = Field(description="Last 7 days, oldest first, zero-filled.")
+    prediction: Optional[SurplusWindow] = Field(
+        description="null when there is not enough recorded history to predict from."
+    )
+    min_days_required: int
+    window_days: int
+    generated_at: datetime
+
+
+class SurplusAlertRequest(BaseModel):
+    tz_offset_minutes: int = Field(
+        default=0,
+        ge=-840,
+        le=840,
+        description="Caller's UTC offset in minutes (e.g. 330 for India), so the forecast hour is local.",
+    )
+
+
+class SurplusAlertData(BaseModel):
+    partners_notified: int = Field(description="Rescue partners who received a new in-app notification.")
+    already_notified: int = Field(description="Eligible partners skipped because they were alerted in the last hour.")
+    eligible_partners: int = Field(description="Available, active, food-accepting partners considered.")
+    scope: Literal["nearby", "all_available"] = Field(
+        description="'nearby' when partners were filtered by distance from the sender's saved location; "
+        "'all_available' when the sender has no saved location."
+    )
+    window_label: str = Field(description="The predicted window as sent, e.g. '10 PM – 11 PM'.")

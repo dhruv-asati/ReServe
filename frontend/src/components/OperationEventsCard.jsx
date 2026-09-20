@@ -16,8 +16,11 @@ import ActivityTimeline from '@/components/ActivityTimeline';
  * Frontend only: events come from the same mock detail payload as the rest of
  * the page (see services/rescueOperationsService.js) and every time shown is
  * a hardcoded, illustrative label — never a live clock.
+ *
+ * `live` is true for backend data: the events are the ones the backend
+ * recorded, shown in the viewer's local time.
  */
-export default function OperationEventsCard({ events = [] }) {
+export default function OperationEventsCard({ events = [], live = false }) {
   return (
     <Card>
       <Card.Header
@@ -36,8 +39,9 @@ export default function OperationEventsCard({ events = [] }) {
           <>
             <ActivityTimeline items={events} wrapText />
             <p className="mt-4 border-t border-line pt-3 text-[11px] text-faint">
-              Demo event feed — timestamps are hardcoded, illustrative values, and no notification
-              was sent to any organization.
+              {live
+                ? 'Events are recorded by the backend as the operation changes; times are shown in your local time.'
+                : 'Demo event feed — timestamps are hardcoded, illustrative values, and no notification was sent to any organization.'}
             </p>
           </>
         )}

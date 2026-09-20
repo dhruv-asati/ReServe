@@ -3,6 +3,8 @@ ResourceRequest endpoints:
 
     POST  /api/requests
     GET   /api/requests
+    GET   /api/requests/incoming | /outgoing | /completed   (Rescue Requests page queues;
+                                                             declared before /{request_id})
     GET   /api/requests/{request_id}
     PATCH /api/requests/{request_id}/status
     DELETE /api/requests/{request_id}
@@ -25,13 +27,14 @@ from app.db.database import get_db
 from app.models.enums import ResourceRequestStatus, ResourceType, UrgencyLevel, UserRole
 from app.models.user import User
 from app.schemas.common import SuccessResponse
+from app.schemas.request_queue import RequestRowOut
 from app.schemas.resource_request import (
     ResourceRequestCreate,
     ResourceRequestListData,
     ResourceRequestOut,
     ResourceRequestStatusUpdate,
 )
-from app.services import resource_request_service
+from app.services import request_queue_service, resource_request_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/requests", tags=["Resource Requests"])
@@ -94,6 +97,56 @@ def list_requests(
         limit=limit,
     )
     return SuccessResponse(data=data, message=f"Found {total} resource request(s).")
+
+
+# NOTE: the three queue routes must stay above GET "/{request_id}" — FastAPI
+# matches in declaration order, so below it "incoming"/"outgoing"/"completed"
+# would be parsed as a UUID and rejected with 422.
+@router.get(
+    "/incoming",
+    response_model=SuccessResponse[list[RequestRowOut]],
+    summary="Incoming requests",
+    description="Open (PENDING/APPROVED) requests raised by other organizations, for PROVIDER, RESCUE_PARTNER and "
+    "ADMIN accounts. Always empty for RECIPIENT accounts.",
+)
+def list_incoming_requests(
+    limit: int = Query(default=100, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = request_queue_service.get_queue(db, current_user, "incoming", limit=limit)
+    return SuccessResponse(data=items, message=f"{len(items)} incoming request(s).")
+
+
+@router.get(
+    "/outgoing",
+    response_model=SuccessResponse[list[RequestRowOut]],
+    summary="Outgoing requests",
+    description="Open (PENDING/APPROVED) requests raised by the caller's own recipient organization.",
+)
+def list_outgoing_requests(
+    limit: int = Query(default=100, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = request_queue_service.get_queue(db, current_user, "outgoing", limit=limit)
+    return SuccessResponse(data=items, message=f"{len(items)} outgoing request(s).")
+
+
+@router.get(
+    "/completed",
+    response_model=SuccessResponse[list[RequestRowOut]],
+    summary="Completed requests",
+    description="Requests in a final state (FULFILLED, REJECTED or CANCELLED). RECIPIENTs see their own; "
+    "everyone else sees all.",
+)
+def list_completed_requests(
+    limit: int = Query(default=100, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    items = request_queue_service.get_queue(db, current_user, "completed", limit=limit)
+    return SuccessResponse(data=items, message=f"{len(items)} completed request(s).")
 
 
 @router.get(

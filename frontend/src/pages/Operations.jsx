@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FilterX, FlaskConical, Map, Radio, SearchX } from 'lucide-react';
 
-import { Card, Badge, Button, EmptyState, LoadingState } from '@/components/ui';
+import { Card, Badge, Button, EmptyState, ErrorState, LoadingState } from '@/components/ui';
 import OperationListCard from '@/components/OperationListCard';
 import OperationsTable from '@/components/OperationsTable';
 import OperationsFilters from '@/components/OperationsFilters';
@@ -13,6 +13,7 @@ import ReallocationDemoCard from '@/components/ReallocationDemoCard';
 import MapPreview from '@/components/MapPreview';
 import MapLegend from '@/components/MapLegend';
 import useReallocationDemo from '@/hooks/useReallocationDemo';
+import { USE_MOCKS } from '@/services/api';
 import {
   getRescueOperations,
   getRescueOperationDetail,
@@ -79,7 +80,11 @@ function noMatchDescription({ query }) {
  * The selection lives in the URL (`?operation=RS-1025`), so it survives a
  * refresh and can be linked to. An unknown id falls back to RS-1024.
  *
- * Everything on this page is frontend-only mock data (see
+ * With `VITE_USE_MOCKS=false` the list and the details come from the backend
+ * instead (services/liveOperationsService.js): operations get short `OP-…` IDs,
+ * the first operation is selected by default, and the demo wording and the
+ * RS-1024 scenario are not shown. In the default mock mode, everything on this
+ * page is frontend-only mock data (see
  * data/rescueOperations.js and data/operationDetail.js) fetched through
  * rescueOperationsService, the same mock-request pattern used by the rest of
  * the app. There is no backend, no live GPS tracking, and no real-world
@@ -88,7 +93,7 @@ function noMatchDescription({ query }) {
  */
 export default function Operations() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedId = searchParams.get('operation') ?? DEFAULT_OPERATION_ID;
+  const requestedId = searchParams.get('operation');
 
   // What the mock service returned. The RS-1024 recipient-unavailable demo is
   // layered on top below, so the list, the summary, the tracker and the map
@@ -101,6 +106,16 @@ export default function Operations() {
     [baseOperations, demo],
   );
   const detail = useMemo(() => applyDemoToOperationDetail(baseDetail, demo), [baseDetail, demo]);
+
+  // Load failures (live mode), and a counter that re-runs both loads on retry.
+  const [listError, setListError] = useState(null);
+  const [detailError, setDetailError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // The operation whose details show: the one in the URL; otherwise RS-1024 in
+  // mock mode, or the first real operation once the live list has loaded.
+  const selectedId =
+    requestedId ?? (USE_MOCKS ? DEFAULT_OPERATION_ID : (baseOperations?.[0]?.id ?? null));
 
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
@@ -126,23 +141,45 @@ export default function Operations() {
 
   useEffect(() => {
     let active = true;
-    getRescueOperations().then((data) => active && setBaseOperations(data));
+    setListError(null);
+    getRescueOperations()
+      .then((data) => {
+        if (!active) return;
+        if (Array.isArray(data)) {
+          setBaseOperations(data);
+        } else {
+          setListError({ message: 'The server returned the operations in an unexpected format.' });
+        }
+      })
+      .catch((error) => {
+        if (active) setListError(error);
+      });
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
 
   // Load the selected operation's details. `detail` resets to null first so
   // the cards below show their loading state instead of the previous
   // operation's data.
   useEffect(() => {
+    // Live mode: nothing to load until the list has an operation to select.
+    if (!selectedId) return undefined;
+
     let active = true;
     setBaseDetail(null);
-    getRescueOperationDetail(selectedId).then((data) => active && setBaseDetail(data));
+    setDetailError(null);
+    getRescueOperationDetail(selectedId)
+      .then((data) => {
+        if (active) setBaseDetail(data);
+      })
+      .catch((error) => {
+        if (active) setDetailError(error);
+      });
     return () => {
       active = false;
     };
-  }, [selectedId]);
+  }, [selectedId, reloadKey]);
 
   // A hand-edited ?operation= that matches nothing falls back to the default.
   useEffect(() => {
@@ -191,6 +228,16 @@ export default function Operations() {
     [operations, filters],
   );
 
+  // Retry after a failed load: back to the skeleton, then fetch everything again.
+  const reload = useCallback(() => {
+    setBaseOperations(null);
+    setBaseDetail(null);
+    setReloadKey((key) => key + 1);
+  }, []);
+
+  // Live mode only: with no operations (or a failed list) there is nothing to show details for.
+  const showDetails = USE_MOCKS || (!listError && !(operations && operations.length === 0));
+
   const operation = detail?.operation ?? null;
   const hasRoute = Boolean(detail?.route);
 
@@ -211,9 +258,15 @@ export default function Operations() {
           <h1 className="text-xl font-bold tracking-tight text-content sm:text-2xl">
             Operations Control Center
           </h1>
-          <Badge tone="predicted" icon={FlaskConical} size="sm">
-            DEMO / MOCK DATA
-          </Badge>
+          {USE_MOCKS ? (
+            <Badge tone="predicted" icon={FlaskConical} size="sm">
+              DEMO / MOCK DATA
+            </Badge>
+          ) : (
+            <Badge tone="active" dot size="sm">
+              LIVE DATA
+            </Badge>
+          )}
         </div>
         <p className="mt-1.5 text-sm text-muted">
           Every rescue operation in one list. Select one to see its status, progress, and location.
@@ -242,7 +295,7 @@ export default function Operations() {
         </div>
 
         {/* Hidden only when loading has finished and there is nothing to filter. */}
-        {(operations === null || operations.length > 0) && (
+        {!listError && (operations === null || operations.length > 0) && (
           <OperationsFilters
             filters={filters}
             counts={quickCounts}
@@ -251,7 +304,15 @@ export default function Operations() {
           />
         )}
 
-        {operations === null ? (
+        {listError ? (
+          <div className="panel">
+            <ErrorState
+              title="Couldn't load operations"
+              description={listError.message ?? 'The request could not be completed. Try again in a moment.'}
+              onRetry={reload}
+            />
+          </div>
+        ) : operations === null ? (
           <LoadingState variant="skeleton" rows={5} label="Loading operations…" />
         ) : operations.length === 0 ? (
           <div className="panel">
@@ -282,6 +343,7 @@ export default function Operations() {
                 operations={visibleOperations}
                 selectedId={selectedId}
                 onSelect={handleSelect}
+                live={!USE_MOCKS}
               />
             </div>
 
@@ -300,12 +362,14 @@ export default function Operations() {
         )}
 
         <p className="mt-3 text-[11px] text-faint">
-          Mock data — operations, providers, recipients, rescue partners, ETAs and deadlines are
-          illustrative, not a live feed.
+          {USE_MOCKS
+            ? 'Mock data — operations, providers, recipients, rescue partners, ETAs and deadlines are illustrative, not a live feed.'
+            : 'Live data from the ReServe backend. The ETA is an estimated straight-line travel time, and the deadline is the resource’s expiry.'}
         </p>
       </section>
 
       {/* ---------- Selected operation details ---------- */}
+      {showDetails && (
       <section
         ref={detailsRef}
         aria-labelledby="operation-details-heading"
@@ -323,6 +387,18 @@ export default function Operations() {
           <span className="font-mono text-xs text-muted">{selectedId}</span>
         </div>
 
+        {detailError ? (
+          <Card>
+            <Card.Body>
+              <ErrorState
+                title="Couldn't load this operation"
+                description={detailError.message ?? 'The request could not be completed. Try again in a moment.'}
+                onRetry={reload}
+              />
+            </Card.Body>
+          </Card>
+        ) : (
+        <>
         {/* ---------- Operation summary ---------- */}
         {operation === null ? (
           <Card>
@@ -331,7 +407,7 @@ export default function Operations() {
             </Card.Body>
           </Card>
         ) : (
-          <OperationSummaryCard operation={operation} />
+          <OperationSummaryCard operation={operation} live={!USE_MOCKS} />
         )}
 
         {/* The recipient-unavailable demo belongs to the demo operation only. */}
@@ -352,8 +428,9 @@ export default function Operations() {
                 <>
                   <OperationStageTracker stages={detail.stages} />
                   <p className="mt-4 border-t border-line pt-3 text-[11px] text-faint">
-                    Timestamps are hardcoded, illustrative values for this demo — not a live or
-                    auto-refreshing feed.
+                    {USE_MOCKS
+                      ? 'Timestamps are hardcoded, illustrative values for this demo — not a live or auto-refreshing feed.'
+                      : 'Timestamps come from the operation’s recorded events. A stage with no timestamp has no recorded time. Reload the page to refresh.'}
                   </p>
                 </>
               )}
@@ -362,7 +439,11 @@ export default function Operations() {
 
           {/* ---------- Route / map area ---------- */}
           <Card>
-            <Card.Header icon={Map} title="Route (Demo)" subtitle={routeSubtitle} />
+            <Card.Header
+              icon={Map}
+              title={USE_MOCKS ? 'Route (Demo)' : 'Route'}
+              subtitle={routeSubtitle}
+            />
             <Card.Body className="space-y-4">
               {detail === null ? (
                 <LoadingState label="Loading map…" />
@@ -397,9 +478,12 @@ export default function Operations() {
             </Card.Body>
           </Card>
         ) : (
-          <OperationEventsCard events={detail.events ?? []} />
+          <OperationEventsCard events={detail.events ?? []} live={!USE_MOCKS} />
+        )}
+        </>
         )}
       </section>
+      )}
     </div>
   );
 }

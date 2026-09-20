@@ -11,23 +11,47 @@ Kept separate from the router so it's reusable without going through
 HTTP, same as every other *_service module in this project.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from sqlalchemy import Date, cast, func
 from sqlalchemy.orm import Session
 
+from app.core.errors import AppError
 from app.models.allocation import Allocation
-from app.models.enums import AllocationStatus, OperationStatus, ResourceStatus, ResourceType
+from app.models.enums import (
+    AllocationStatus,
+    OperationStatus,
+    ResourceRequestStatus,
+    ResourceStatus,
+    ResourceType,
+)
+from app.models.notification import Notification
 from app.models.operation import RescueOperation
+from app.models.rescue_partner import RescuePartner
 from app.models.rescue_request import RescueRequest
 from app.models.resource import Resource
+from app.models.resource_request import ResourceRequest
+from app.models.user import User
 from app.schemas.analytics import (
+    AnalyticsInsightsData,
     AnalyticsOverviewData,
     AnalyticsResourceTypeData,
     AnalyticsTrendsData,
     DailyTrendPoint,
+    DeadlinePerformanceData,
+    OperationCompletionData,
     ResourceTypeStats,
+    SurplusAlertData,
+    SurplusDay,
+    SurplusForecastData,
+    SurplusWindow,
+    WeeklyAllocationOutcome,
+    WeeklyMatchingTime,
+    WeeklyOperationOutcome,
+    WeeklySupplyDemand,
 )
+from app.services import analytics_logic, notification_service
+from app.services.location_service import haversine_km
 
 # Bounds for GET /api/analytics/trends. One day is the smallest window
 # that means anything; 90 keeps the response (and the group-by) small
@@ -290,4 +314,281 @@ def get_resource_type_stats(db: Session) -> AnalyticsResourceTypeData:
         total_resources=total_resources,
         by_resource_type=by_type,
         generated_at=datetime.now(timezone.utc),
+    )
+
+
+# --------------------------------------------------------------------------
+# GET /api/analytics/insights — weekly supply/demand, allocations, matching
+# time, deadline performance and operation outcomes
+# --------------------------------------------------------------------------
+#
+# Each query below only SELECTs the handful of columns a chart needs for the
+# last N weeks; the bucketing and averaging happens in
+# app/services/analytics_logic.py (pure Python, unit-tested). That keeps the
+# week-of-year / timezone maths out of SQL — every bucket is a UTC Monday,
+# same as GET /api/predictions — and bounds the work by the window (at most
+# MAX_INSIGHT_WEEKS weeks of rows).
+
+
+def get_insights(
+    db: Session, weeks: int = analytics_logic.DEFAULT_INSIGHT_WEEKS, now: datetime | None = None
+) -> AnalyticsInsightsData:
+    now = now or datetime.now(timezone.utc)
+    week_starts = analytics_logic.build_week_starts(now.date(), weeks)
+    since = datetime.combine(week_starts[0], time.min, tzinfo=timezone.utc)
+
+    # Supply: resources posted. Demand: quantity recipients asked for.
+    supply_rows = (
+        db.query(Resource.created_at, Resource.quantity)
+        .filter(Resource.created_at >= since, Resource.status != ResourceStatus.CANCELLED)
+        .all()
+    )
+    demand_rows = (
+        db.query(ResourceRequest.created_at, ResourceRequest.requested_quantity)
+        .filter(
+            ResourceRequest.created_at >= since,
+            ResourceRequest.status != ResourceRequestStatus.CANCELLED,
+        )
+        .all()
+    )
+    supply = analytics_logic.weekly_totals(supply_rows, week_starts)
+    demand = analytics_logic.weekly_totals(demand_rows, week_starts)
+
+    # Allocation outcomes, by the week the allocation was created. PENDING /
+    # CONFIRMED are still in flight and REALLOCATED was superseded by a
+    # replacement, so neither counts as a success or a failure.
+    allocation_rows = (
+        db.query(Allocation.created_at, Allocation.status)
+        .filter(
+            Allocation.created_at >= since,
+            Allocation.status.in_((AllocationStatus.DELIVERED, AllocationStatus.CANCELLED)),
+        )
+        .all()
+    )
+    successful = analytics_logic.weekly_counts(
+        (created for created, status in allocation_rows if status == AllocationStatus.DELIVERED), week_starts
+    )
+    unsuccessful = analytics_logic.weekly_counts(
+        (created for created, status in allocation_rows if status == AllocationStatus.CANCELLED), week_starts
+    )
+
+    # Matching time: rescue request created -> its first allocation.
+    first_allocation = (
+        db.query(
+            Allocation.rescue_request_id.label("rescue_request_id"),
+            func.min(Allocation.created_at).label("first_at"),
+        )
+        .group_by(Allocation.rescue_request_id)
+        .subquery()
+    )
+    matching_rows = (
+        db.query(RescueRequest.created_at, first_allocation.c.first_at)
+        .select_from(RescueRequest)
+        .join(first_allocation, first_allocation.c.rescue_request_id == RescueRequest.id)
+        .filter(RescueRequest.created_at >= since)
+        .all()
+    )
+    matching_weekly, matching_overall, matching_samples = analytics_logic.weekly_matching_time(
+        matching_rows, week_starts
+    )
+
+    # Operation outcomes and deadline performance.
+    operation_rows = [
+        (created_at, status.value, delivered_at, completed_at, request_deadline, resource_expiry)
+        for created_at, status, delivered_at, completed_at, request_deadline, resource_expiry in (
+            db.query(
+                RescueOperation.created_at,
+                RescueOperation.status,
+                RescueOperation.delivered_at,
+                RescueOperation.completed_at,
+                RescueRequest.deadline,
+                Resource.expiry_time,
+            )
+            .select_from(RescueOperation)
+            .join(RescueRequest, RescueOperation.rescue_request_id == RescueRequest.id)
+            .join(Resource, RescueRequest.resource_id == Resource.id)
+            .filter(RescueOperation.created_at >= since)
+            .all()
+        )
+    ]
+    operations = analytics_logic.summarize_operations(operation_rows, week_starts, now)
+
+    return AnalyticsInsightsData(
+        window_weeks=len(week_starts),
+        start_week=week_starts[0],
+        end_week=week_starts[-1],
+        supply_vs_demand=[
+            WeeklySupplyDemand(week_start=w, supply=supply[i], demand=demand[i])
+            for i, w in enumerate(week_starts)
+        ],
+        allocations=[
+            WeeklyAllocationOutcome(week_start=w, successful=successful[i], unsuccessful=unsuccessful[i])
+            for i, w in enumerate(week_starts)
+        ],
+        matching_time=[WeeklyMatchingTime(**point) for point in matching_weekly],
+        avg_matching_minutes=matching_overall,
+        matching_samples=matching_samples,
+        deadline_performance=DeadlinePerformanceData(**operations["deadline"]),
+        operation_completion=OperationCompletionData(**operations["completion"]),
+        operation_outcomes=[WeeklyOperationOutcome(**point) for point in operations["weekly"]],
+        generated_at=now,
+    )
+
+
+# --------------------------------------------------------------------------
+# GET /api/analytics/surplus-forecast and POST /api/analytics/surplus-alert
+# --------------------------------------------------------------------------
+
+# How far a rescue partner with no service radius of their own is assumed
+# willing to travel when deciding who is "nearby" the sender.
+DEFAULT_ALERT_RADIUS_KM = 25.0
+# A partner alerted within this long ago is not alerted again.
+ALERT_COOLDOWN = timedelta(hours=1)
+
+
+def _surplus_rows(db: Session, now: datetime, days: int) -> list[tuple[datetime, float, str | None]]:
+    """
+    (ready_at, quantity, unit) for every FOOD resource that became available
+    in the last `days` days. "Ready" is available_time when the provider set
+    one, else the moment the resource was posted. Cancelled resources are
+    excluded — they were withdrawn, so they were never surplus that
+    existed. Resources scheduled for the future are history-in-waiting and
+    are left out.
+    """
+    ready_at = func.coalesce(Resource.available_time, Resource.created_at)
+    # One extra day of padding so every timezone still sees its whole first day.
+    since = now - timedelta(days=days + 1)
+    rows = (
+        db.query(ready_at, Resource.quantity, Resource.unit)
+        .filter(
+            Resource.resource_type == ResourceType.FOOD,
+            Resource.status != ResourceStatus.CANCELLED,
+            ready_at >= since,
+            ready_at <= now,
+        )
+        .all()
+    )
+    return [(r[0], float(r[1] or 0), r[2]) for r in rows]
+
+
+def get_surplus_forecast(
+    db: Session,
+    tz_offset_minutes: int = 0,
+    days: int = analytics_logic.FORECAST_WINDOW_DAYS,
+    now: datetime | None = None,
+) -> SurplusForecastData:
+    """
+    Recent daily surplus plus, when the history supports one, the hour of the
+    day surplus food most reliably shows up in. No demo fallback: with too
+    little history `prediction` is None and the UI says so.
+    """
+    now = now or datetime.now(timezone.utc)
+    rows = _surplus_rows(db, now, days)
+
+    history = analytics_logic.surplus_history(rows, now, tz_offset_minutes)
+    prediction = analytics_logic.predict_surplus_window(rows, now, tz_offset_minutes, window_days=days)
+
+    return SurplusForecastData(
+        unit=analytics_logic.history_unit(rows, now, tz_offset_minutes),
+        history=[SurplusDay(**day) for day in history],
+        prediction=SurplusWindow(**prediction) if prediction else None,
+        min_days_required=analytics_logic.MIN_DAYS_FOR_FORECAST,
+        window_days=days,
+        generated_at=now,
+    )
+
+
+def _within_reach(sender: User, partner: RescuePartner, partner_user: User) -> bool:
+    """True when the partner has a known location inside their own service radius of the sender."""
+    latitude = partner.latitude if partner.latitude is not None else partner_user.latitude
+    longitude = partner.longitude if partner.longitude is not None else partner_user.longitude
+    if latitude is None or longitude is None:
+        return False
+    radius = partner.service_radius_km or DEFAULT_ALERT_RADIUS_KM
+    return haversine_km(sender.latitude, sender.longitude, latitude, longitude) <= radius
+
+
+def send_surplus_alert(
+    db: Session, sender: User, tz_offset_minutes: int = 0, now: datetime | None = None
+) -> SurplusAlertData:
+    """
+    Really notify rescue partners about the predicted surplus window.
+
+    The forecast is recomputed here — the client only says what timezone it
+    is in — so nobody can broadcast an invented forecast. Recipients are the
+    real, active, currently-available, food-accepting rescue partners (never
+    the sender). When the sender has a saved location only partners inside
+    their own service radius of it are alerted ("nearby"); a sender with no
+    saved location falls back to every available partner. Anyone alerted in
+    the last hour is skipped so the button can't spam. With no partners the
+    result is simply zero — nothing is faked.
+    """
+    now = now or datetime.now(timezone.utc)
+    forecast = get_surplus_forecast(db, tz_offset_minutes, now=now)
+    window = forecast.prediction
+    if window is None:
+        raise AppError(
+            status_code=409,
+            code="NO_SURPLUS_FORECAST",
+            message="There isn't enough recorded surplus history to predict a window yet, "
+            "so no partners were notified.",
+        )
+
+    pairs = (
+        db.query(RescuePartner, User)
+        .join(User, User.id == RescuePartner.user_id)
+        .filter(
+            User.is_active.is_(True),
+            RescuePartner.is_available.is_(True),
+            RescuePartner.accepts_food.is_(True),
+            RescuePartner.user_id != sender.id,
+        )
+        .all()
+    )
+
+    sender_has_location = sender.latitude is not None and sender.longitude is not None
+    if sender_has_location:
+        scope = "nearby"
+        pairs = [(partner, user) for partner, user in pairs if _within_reach(sender, partner, user)]
+    else:
+        scope = "all_available"
+
+    eligible_ids = [partner.user_id for partner, _user in pairs]
+    already: set = set()
+    if eligible_ids:
+        already = {
+            user_id
+            for (user_id,) in db.query(Notification.user_id).filter(
+                Notification.title == notification_service.SURPLUS_ALERT_TITLE,
+                Notification.created_at >= now - ALERT_COOLDOWN,
+                Notification.user_id.in_(eligible_ids),
+            )
+        }
+
+    label = f"{analytics_logic.format_hour(window.start_hour)} – {analytics_logic.format_hour(window.end_hour)}"
+    amount = (
+        f"about {window.high:g}"
+        if window.low == window.high
+        else f"roughly {window.low:g}–{window.high:g}"
+    )
+    message = (
+        f"{sender.organization_name or sender.full_name} expects {amount} {window.unit} of surplus "
+        f"food around {label}, based on recent activity. Be ready for pickups."
+    )
+
+    notified = 0
+    for user_id in eligible_ids:
+        if user_id in already:
+            continue
+        notification_service.notify_surplus_alert(db, partner_user_id=user_id, message=message)
+        notified += 1
+    if notified:
+        db.commit()
+
+    return SurplusAlertData(
+        partners_notified=notified,
+        already_notified=len(already),
+        eligible_partners=len(eligible_ids),
+        scope=scope,
+        window_label=label,
     )

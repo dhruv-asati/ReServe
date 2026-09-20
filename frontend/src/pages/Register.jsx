@@ -19,9 +19,9 @@ import { useAuth } from '@/context/AuthContext';
 /**
  * Register — org onboarding for providers, recipients, and rescue partners.
  *
- * Frontend only: on success the account is written to the mock user store
- * (services/auth.js, backed by localStorage) and signed in immediately
- * through AuthContext, matching what Login does for an existing account.
+ * On submit, services/auth.js registers the account with the backend
+ * (POST /auth/register), signs it in, and saves the organization name to the
+ * profile (PUT /users/me) — see AuthContext.
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -140,7 +140,7 @@ below is a quick-reference summary.
 | `MAX_UPLOAD_FILE_SIZE_MB` | `5` | Max upload size, enforced for both storage backends. |
 | `LOCAL_UPLOAD_DIR` | `uploads` | Where files are written when Supabase Storage isn't configured. |
 | `PUBLIC_BASE_URL` | `http://localhost:8000` | Base URL used to build links to locally-stored uploads. |
-| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Comma-separated list of origins allowed to call the API from a browser. |
+| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000` | Comma-separated list of origins allowed to call the API from a browser. |
 | `LOG_LEVEL` | `INFO` | Application log level. |
 
 **Note on file storage:** if `SUPABASE_URL`/`SUPABASE_KEY` are left blank, uploads
@@ -209,9 +209,9 @@ A request from an authenticated user without the required role gets
 
 ## Analytics
 
-Three read-only, platform-wide endpoints. Every figure is computed fresh
+Read-only, platform-wide endpoints (plus one notification-only write, below). Every figure is computed fresh
 from real aggregate queries on each call — no caching, no sampling, and
-no estimates. All three require authentication but no particular role,
+no estimates. They require authentication but no particular role,
 the same as viewing resources or operations, and none of them can
 influence matching, allocation, or any resource's status.
 
@@ -220,6 +220,9 @@ influence matching, allocation, or any resource's status.
 | `GET /api/analytics/overview` | Where does the platform stand right now? |
 | `GET /api/analytics/trends` | How has activity moved day by day? |
 | `GET /api/analytics/resource-types` | How does FOOD compare with MEDICAL? |
+| `GET /api/analytics/insights` | Weekly supply vs. demand, allocation outcomes, matching time, deadline performance, operation outcomes |
+| `GET /api/analytics/surplus-forecast` | Recent daily food surplus, and the hour of day it usually appears in |
+| `POST /api/analytics/surplus-alert` | Notify available rescue partners about the predicted window (the one endpoint here that writes — notifications only) |
 
 ### `GET /api/analytics/overview`
 
@@ -280,6 +283,41 @@ each allocation's resource.
 exists yet, so a client rendering FOOD and MEDICAL side by side never has
 to handle a missing key — and a type with nothing posted reads as a real
 zero rather than as absent data.
+
+### `GET /api/analytics/insights`
+
+Feeds the Analytics page's weekly and outcome charts in one call. `weeks`
+(default 4, max 12) sets the window; weeks start on Monday (UTC) and the
+last one is the current, still-in-progress week. Returns, per week,
+supply vs. demand quantity, delivered vs. cancelled allocations, average
+matching time (rescue request created → first allocation) and completed
+vs. at-risk operations, plus window totals for deadline performance
+(arrived on time / late / no deadline recorded) and operation completion
+(completed / in progress / failed). Weeks with nothing to average report
+`avg_minutes: null`, never `0`. See `app/services/analytics_logic.py` for
+the exact definitions (an operation is judged against its rescue
+request's deadline, falling back to the resource's `expiry_time`).
+
+### `GET /api/analytics/surplus-forecast` and `POST /api/analytics/surplus-alert`
+
+The forecast returns the last 7 days of FOOD surplus (by
+`available_time`, else `created_at`) and, **only when the history
+supports one**, `prediction`: the local hour of day in which surplus
+appeared on at least 3 different days of the last 28, with the smallest
+and largest per-day amount seen. Pass the browser's UTC offset as
+`tz_offset_minutes` (e.g. `330` for India). With too little history
+`prediction` is `null` — there is no demo fallback.
+
+The alert re-computes that forecast server-side (409
+`NO_SURPLUS_FORECAST` when there is none) and creates a real in-app
+notification (plus an email if SMTP is configured) for each active,
+available, food-accepting rescue partner other than the caller. If the
+caller has a saved location, only partners within their own
+`service_radius_km` (default 25 km) are alerted (`scope: "nearby"`);
+otherwise every available partner is (`scope: "all_available"`). Partners
+alerted within the last hour are skipped. `partners_notified` is the true
+count and is `0` when there is nobody to notify. Requires the `PROVIDER`,
+`RESCUE_PARTNER` or `ADMIN` role.
 
 ### Analytics vs. predictions
 
