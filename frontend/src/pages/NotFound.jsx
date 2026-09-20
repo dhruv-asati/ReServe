@@ -11,7 +11,7 @@ export default function NotFound() {
       </p>
       <Link
         to={PATHS.DASHBOARD}
-        className="rounded-control bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-500"
+        className="rounded-control bg-veil-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-veil-500"
       >
         Back to dashboard
       </Link>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Button, Badge } from '@/components/ui';
+import LandingHeader from '@/components/LandingHeader';
 import RescueFlow from '@/components/landing/RescueFlow';
 import ResourceTypes from '@/components/landing/ResourceTypes';
 import CoreFeatures from '@/components/landing/CoreFeatures';
@@ -61,6 +62,8 @@ const FLOW = [
 export default function Landing() {
   return (
     <>
+    <LandingHeader />
+
     <section className="relative overflow-hidden">
       {/* Faint operational backdrop — restrained, no heavy gradients */}
       <div className="grid-backdrop pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
@@ -68,8 +71,8 @@ export default function Landing() {
       <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:py-28">
         {/* ---------- Hero copy ---------- */}
         <div className="animate-fade-up">
-          <div className="inline-flex max-w-full items-start gap-2 rounded-full border border-line bg-surface-2 px-3 py-1.5 ring-1 ring-inset ring-brand-500/20">
-            <Sparkles size={13} strokeWidth={2} className="mt-0.5 shrink-0 text-brand-400" />
+          <div className="inline-flex max-w-full items-start gap-2 rounded-full border border-veil-500/30 bg-veil-500/10 px-3 py-1.5 ring-1 ring-inset ring-veil-500/20">
+            <Sparkles size={13} strokeWidth={2} className="mt-0.5 shrink-0 text-veil-400" />
             <span className="text-xs font-medium leading-snug text-muted">
               <span className="font-semibold text-content">ReServe</span> — AI-Powered Resource
               Redistribution &amp; Rescue Network
@@ -142,10 +145,19 @@ export default function Landing() {
       </div>
     </section>
 
-    <RescueFlow />
-    <ResourceTypes />
-    <CoreFeatures />
-    <HowItWorks />
+    {/* Wrapper ids are the targets of the header's section links */}
+    <div id="rescue-flow" className="scroll-mt-16">
+      <RescueFlow />
+    </div>
+    <div id="resources" className="scroll-mt-16">
+      <ResourceTypes />
+    </div>
+    <div id="features" className="scroll-mt-16">
+      <CoreFeatures />
+    </div>
+    <div id="how-it-works" className="scroll-mt-16">
+      <HowItWorks />
+    </div>
     <FinalCTA />
     <Footer />
     </>

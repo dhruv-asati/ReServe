@@ -70,13 +70,13 @@ function Row({ operation, selected, onSelect }) {
       onClick={() => onSelect(operation)}
       className={cn(
         'cursor-pointer border-t border-line align-top transition-colors duration-150',
-        selected ? 'bg-brand-500/5' : 'hover:bg-surface-2/50',
+        selected ? 'bg-veil-500/5' : 'hover:bg-surface-2/50',
       )}
     >
       <td
         className={cn(
           'whitespace-nowrap px-3 py-3.5',
-          selected && 'shadow-[inset_2px_0_0_0_var(--color-brand-500)]',
+          selected && 'shadow-[inset_2px_0_0_0_var(--color-veil-500)]',
         )}
       >
         {/* The row's click handler does the selecting; this button is the
@@ -85,7 +85,7 @@ function Row({ operation, selected, onSelect }) {
           type="button"
           aria-label={`View details for ${id}`}
           aria-current={selected ? 'true' : undefined}
-          className="rounded-sm font-mono text-xs font-medium text-content transition-colors duration-150 hover:text-brand-400"
+          className="rounded-sm font-mono text-xs font-medium text-content transition-colors duration-150 hover:text-veil-400"
         >
           {id}
         </button>
@@ -94,7 +94,7 @@ function Row({ operation, selected, onSelect }) {
       <td className="px-3 py-3.5">
         <div className="flex items-start gap-2">
           {Icon && (
-            <span className="mt-0.5 shrink-0 text-brand-400">
+            <span className="mt-0.5 shrink-0 text-veil-400">
               <Icon size={14} strokeWidth={1.75} />
             </span>
           )}

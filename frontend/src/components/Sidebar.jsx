@@ -1,7 +1,7 @@
-import { NavLink, Link } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, LifeBuoy, ChevronRight } from 'lucide-react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
+import { PanelLeftClose, PanelLeftOpen, ChevronRight } from 'lucide-react';
 
-import { NAV_GROUPS } from '@/routes/navigation';
+import { NAV_GROUPS, isExactMatchOnly } from '@/routes/navigation';
 import { PATHS } from '@/routes/paths';
 import { cn } from '@/utils/cn';
 
@@ -69,53 +69,39 @@ function Brand({ collapsed }) {
   );
 }
 
-/** Mark glyph: a node routing surplus onward. Drawn, not an image asset. */
+/**
+ * Brand mark: the square favicon served from /public. Used by the menu header,
+ * the desktop sidebar and the landing footer, so swap public/favicon.svg to
+ * rebrand all three at once.
+ */
 export function Logo({ size = 28 }) {
   return (
-    <span
-      className="grid shrink-0 place-items-center rounded-control bg-brand-600/15 ring-1 ring-brand-500/30"
-      style={{ width: size, height: size }}
-    >
-      <svg
-        width={size * 0.6}
-        height={size * 0.6}
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M4 6h9a5 5 0 0 1 0 10H8"
-          stroke="var(--color-brand-400)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-        <path
-          d="m11 13-3 3 3 3"
-          stroke="var(--color-brand-400)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="19" cy="6" r="2" fill="var(--color-brand-400)" />
-      </svg>
-    </span>
+    <img
+      src={`${import.meta.env.BASE_URL}favicon.svg`}
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      className="shrink-0 object-contain"
+    />
   );
 }
 
 function NavItem({ item, collapsed, count }) {
   const Icon = item.icon;
+  const { pathname } = useLocation();
 
   return (
     <NavLink
       to={item.to}
-      end={item.end}
+      end={isExactMatchOnly(item, pathname)}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         cn(
           'group relative flex items-center rounded-control text-sm transition-colors duration-150',
           collapsed ? 'h-10 justify-center' : 'h-9.5 gap-2.5 px-2.5',
           isActive
-            ? 'bg-brand-500/10 font-medium text-brand-300'
+            ? 'bg-veil-500/20 font-medium text-white'
             : 'text-muted hover:bg-surface-2 hover:text-content',
         )
       }
@@ -125,7 +111,7 @@ function NavItem({ item, collapsed, count }) {
           {/* Active rail marker */}
           <span
             className={cn(
-              'absolute left-0 h-5 w-0.5 rounded-r-full bg-brand-400 transition-opacity',
+              'absolute left-0 h-5 w-0.5 rounded-r-full bg-veil-400 transition-opacity',
               isActive ? 'opacity-100' : 'opacity-0',
             )}
           />
@@ -149,18 +135,6 @@ function NavItem({ item, collapsed, count }) {
 function SidebarFooter({ collapsed, onToggleCollapse }) {
   return (
     <div className="shrink-0 border-t border-line p-3">
-      {!collapsed && (
-        <div className="mb-2 rounded-control border border-line bg-surface-2 p-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-content">
-            <LifeBuoy size={14} strokeWidth={1.75} className="text-brand-400" />
-            Demo environment
-          </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-faint">
-            Data shown is simulated for demonstration.
-          </p>
-        </div>
-      )}
-
       <button
         type="button"
         onClick={onToggleCollapse}

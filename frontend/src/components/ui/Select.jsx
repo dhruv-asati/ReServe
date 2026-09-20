@@ -48,7 +48,7 @@ export default function Select({
           className={cn(
             'h-9.5 w-full appearance-none rounded-control border bg-surface-2 pl-3 pr-9 text-sm text-content',
             'transition-colors duration-150',
-            'focus:border-brand-500 focus:outline-none',
+            'focus:border-veil-500 focus:outline-none',
             'disabled:cursor-not-allowed disabled:opacity-60',
             error ? 'border-critical' : 'border-line hover:border-line-strong',
             className,
